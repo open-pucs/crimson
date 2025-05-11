@@ -15,7 +15,8 @@ const ADMIN_TAG: &str = "admin";
     tags(
         (name = DOCS_TAG, description = "Document API endpoints"),
         (name = ADMIN_TAG, description = "Admin API endpoints")
-    )
+    ),
+    paths(health)
 )]
 struct ApiDoc;
 
@@ -28,7 +29,7 @@ struct ApiDoc;
     )
 )]
 async fn health() -> &'static str {
-    "ok"
+    "Service is Healthy"
 }
 
 #[tokio::main]
@@ -47,30 +48,62 @@ async fn main() -> Result<(), io::Error> {
 
 mod docs {
     use axum::Json;
-    use serde::Serialize;
+    use axum::extract::Multipart;
+    use serde::{Deserialize, Serialize};
     use utoipa::ToSchema;
     use utoipa_axum::router::OpenApiRouter;
     use utoipa_axum::routes;
+    use uuid::Uuid;
+    #[derive(ToSchema, Serialize, Deserialize)]
+    enum ProcessingStage {
+        Completed,
+        Waiting,
+        Errored,
+        Processing,
+    }
 
-    /// This is the customer
-    #[derive(ToSchema, Serialize)]
-    struct Customer {
-        name: String,
+    // PDF Processing Data.
+    #[derive(ToSchema, Deserialize, Serialize)]
+    struct PdfProcessingInfo {
+        id: Uuid, // Figure out what a proper type for a uuid in rust is.
+        process_stage: ProcessingStage,
+    }
+
+    /// PDF upload data
+    #[derive(Deserialize, ToSchema)]
+    pub struct PdfUpload {
+        #[schema(format = Binary, content_media_type = "application/pdf")]
+        pdf: String,
+    }
+
+    /// Ingest a PDF file via multipart/form-data
+    #[utoipa::path(
+    post,
+    path = "/api/ingest",
+    request_body(content = PdfUpload, content_type = "multipart/form-data"),
+    responses(
+        (status = 200, description = "PDF successfully ingested", body = String)
+    ),
+     tag = super::DOCS_TAG
+)]
+    async fn pdf_ingest(mut multipart: Multipart) -> Json<PdfProcessingInfo> {
+        while let Some(field) = multipart.next_field().await.unwrap() {
+            if let Some(name) = field.name() {
+                if name == "pdf" {
+                    let _bytes = field.bytes().await.expect("should be bytes for pdf field");
+                    break;
+                }
+            }
+        }
+        Json(PdfProcessingInfo {
+            id: Uuid::new_v4(),
+            process_stage: ProcessingStage::Waiting,
+        })
     }
 
     /// expose the Customer OpenAPI to parent module
     pub fn router() -> OpenApiRouter {
-        OpenApiRouter::new().routes(routes!(get_customer))
-    }
-
-    /// Get customer
-    ///
-    /// Just return a static Customer object
-    #[utoipa::path(get, path = "", responses((status = OK, body = Customer)), tag = super::DOCS_TAG)]
-    async fn get_customer() -> Json<Customer> {
-        Json(Customer {
-            name: String::from("Bill Book"),
-        })
+        OpenApiRouter::new().routes(routes!(pdf_ingest))
     }
 }
 
@@ -81,40 +114,23 @@ mod admin {
     use utoipa_axum::router::OpenApiRouter;
     use utoipa_axum::routes;
 
-    /// This is the order
-    #[derive(ToSchema, Serialize)]
-    struct Order {
-        id: i32,
-        name: String,
-    }
-
     #[derive(ToSchema, Deserialize, Serialize)]
-    struct OrderRequest {
+    struct ServerInfo {
         name: String,
+        version: String,
     }
 
     /// expose the Order OpenAPI to parent module
     pub fn router() -> OpenApiRouter {
-        OpenApiRouter::new().routes(routes!(get_order, create_order))
+        OpenApiRouter::new().routes(routes!(get_server_info))
     }
 
     /// Get static order object
-    #[utoipa::path(get, path = "", responses((status = OK, body = Order)), tag = super::ADMIN_TAG)]
-    async fn get_order() -> Json<Order> {
-        Json(Order {
-            id: 100,
-            name: String::from("Bill Book"),
-        })
-    }
-
-    /// Create an order.
-    ///
-    /// Create an order by basically passing through the name of the request with static id.
-    #[utoipa::path(post, path = "", responses((status = OK, body = Order)), tag = super::ADMIN_TAG)]
-    async fn create_order(Json(order): Json<OrderRequest>) -> Json<Order> {
-        Json(Order {
-            id: 120,
-            name: order.name,
+    #[utoipa::path(get, path = "/info", responses((status = OK, body = ServerInfo)), tag = super::ADMIN_TAG)]
+    async fn get_server_info() -> Json<ServerInfo> {
+        Json(ServerInfo {
+            name: "Crimson".into(),
+            version: "0.0".into(),
         })
     }
 }

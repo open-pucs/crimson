@@ -12,6 +12,7 @@ tower-http = { version = "0.3", features = ["cors"] }
 serde = { version = "1.0", features = ["derive"] }
 bytes = "1.4"
 tracing-subscriber = "0.3"
-utoipa = "5.3.1"
+utoipa = { version = "5.3.1", features = ["time", "url", "uuid"] }
 utoipa-axum = "0.2.0"
 utoipa-swagger-ui = { version = "9.0.1", features = ["axum"] }
+uuid = { version = "1.16.0", features = ["rng", "serde", "v4"] }
