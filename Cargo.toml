@@ -1,0 +1,16 @@
+[package]
+name = "crimson"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axum = { version = "0.8.4", features = ["json", "multipart"] }
+pdfium-render = "0.8.31"
+tokio = { version = "1.45.0", features = ["full"] }
+
+tower-http = { version = "0.3", features = ["cors"] }
+serde = { version = "1.0", features = ["derive"] }
+bytes = "1.4"
+tracing-subscriber = "0.3"
+utoipa-swagger-ui = "9.0.1"
+utoipa = "5.3.1"
