@@ -1,8 +1,14 @@
-use axum::{extract::Multipart, routing::{get, post}, Router, serve};
+use axum::{
+    Router,
+    extract::Multipart,
+    routing::{get, post},
+    serve,
+};
 use serde::Deserialize;
-use utoipa::{OpenApi, ToSchema};
-use utoipa_swagger_ui::SwaggerUi;
 use std::net::SocketAddr;
+use utoipa::{OpenApi, ToSchema};
+use utoipa_axum::{router::OpenApiRouter, routes};
+use utoipa_swagger_ui::SwaggerUi;
 
 /// Schemas for request bodies
 #[derive(Deserialize, ToSchema)]
@@ -20,33 +26,24 @@ struct PdfUpload {
     pdf: String,
 }
 
-/// OpenAPI documentation
-#[derive(OpenApi)]
-#[openapi(
-    paths(hello_form, pdf_ingest, health_check),
-    components(schemas(HelloForm, PdfUpload)),
-    tags(
-        (name = "hello", description = "Hello form endpoint"),
-        (name = "ingest", description = "PDF ingestion endpoint"),
-        (name = "health", description = "Health check endpoint")
-    )
-)]
-struct ApiDoc;
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Generate OpenAPI spec
-    let openapi = ApiDoc::openapi();
 
     // Build application router
-    let app = Router::new()
-        .route("/hello", post(hello_form))
-        .route("/ingest", post(pdf_ingest))
-        .route("/health", get(health_check))
-        .merge(
-            SwaggerUi::new("/swagger-ui")
-                .url("/api/openapi.json", openapi)
-        );
+    let (router, api) = OpenApiRouter::new()
+        .routes(routes!(pdf_ingest, health_check))
+        .split_for_parts();
+
+    let router = router.merge(SwaggerUi::new("/swagger-ui").url("/api/openapi.json", api.clone()));
+
+    let app = router.into_make_service();
+    //
+    // let app = Router::new()
+    //     .route("/hello", post(hello_form))
+    //     .route("/ingest", post(pdf_ingest))
+    //     .route("/health", get(health_check))
+    //     .merge(SwaggerUi::new("/swagger-ui").url("/api/openapi.json", openapi));
 
     // Bind and serve
     let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
@@ -54,7 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Bind to address
     let listener = tokio::net::TcpListener::bind(addr).await?;
     // Serve the application
-    serve(listener, app.into_make_service()).await?;
+    serve(listener, app).await?;
 
     Ok(())
 }
@@ -129,3 +126,4 @@ async fn pdf_ingest(mut multipart: Multipart) -> String {
 async fn health_check() -> String {
     "Service is Healthy".into()
 }
+
