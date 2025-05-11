@@ -1,71 +1,65 @@
-use axum::{
-    Json, Router, extract::Multipart, http::StatusCode, response::IntoResponse, routing::post,
-};
+use axum::extract::Multipart;
 use serde::Deserialize;
-use utoipa::OpenApi;
 use utoipa::ToSchema;
+use utoipa_axum::router::OpenApiRouter;
+use utoipa_axum::routes;
 use utoipa_swagger_ui::SwaggerUi;
 
-#[derive(Deserialize, ToSchema)]
-pub struct UploadForm {
-    #[schema(format = Binary, description = "PDF file to ingest")]
-    file: Vec<u8>,
+#[tokio::main]
+async fn main() -> std::io::Result<()> {
+    let (router, api) = OpenApiRouter::new()
+        .routes(routes!(hello_form))
+        .split_for_parts();
+
+    let router = router.merge(SwaggerUi::new("/swagger-ui").url("/api/openapi.json", api));
+
+    let app = router.into_make_service();
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await.unwrap();
+    axum::serve(listener, app).await
 }
 
-/// Upload endpoint that ingests a PDF
+/// Just a schema for axum native multipart
+#[derive(Deserialize, ToSchema)]
+#[allow(unused)]
+struct HelloForm {
+    name: String,
+    #[schema(format = Binary, content_media_type = "application/octet-stream")]
+    file: String,
+}
+
 #[utoipa::path(
     post,
-    path = "/upload",
-    request_body(content = UploadForm, content_type = "multipart/form-data"),
-    responses((status = 200, description = "Successfully ingested"))
+    path = "/hello",
+    request_body(content = HelloForm, content_type = "multipart/form-data")
 )]
-async fn upload(mut multipart: Multipart) -> Result<impl IntoResponse, (StatusCode, String)> {
-    while let Some(field) = multipart.next_field().await.map_err(internal_error)? {
-        let name = field.name().unwrap_or("");
-        if name == "file" {
-            let data = field.bytes().await.map_err(internal_error)?;
-            // TODO: process PDF bytes (e.g., send to processing pipeline)
-            println!("Received PDF with {} bytes", data.len());
-            return Ok((StatusCode::OK, "Successfully ingested"));
-        }
+async fn hello_form(mut multipart: Multipart) -> String {
+    let mut name: Option<String> = None;
+
+    let mut content_type: Option<String> = None;
+    let mut size: usize = 0;
+    let mut file_name: Option<String> = None;
+
+    while let Some(field) = multipart.next_field().await.unwrap() {
+        let field_name = field.name();
+
+        match &field_name {
+            Some("name") => {
+                name = Some(field.text().await.expect("should be text for name field"));
+            }
+            Some("file") => {
+                file_name = field.file_name().map(ToString::to_string);
+                content_type = field.content_type().map(ToString::to_string);
+                let bytes = field.bytes().await.expect("should be bytes for file field");
+                size = bytes.len();
+            }
+            _ => (),
+        };
     }
-    Err((
-        StatusCode::BAD_REQUEST,
-        "No file field in multipart".to_string(),
-    ))
-}
-
-fn internal_error<E: std::fmt::Display>(err: E) -> (StatusCode, String) {
-    (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
-}
-
-#[derive(OpenApi)]
-#[openapi(
-    paths(upload),
-    components(schemas(UploadForm)),
-    info(
-        title = "Crimson PDF Processor",
-        version = "0.1.0",
-        description = "API for high throughput PDF ingestion"
+    format!(
+        "name: {}, content_type: {}, size: {}, file_name: {}",
+        name.unwrap_or_default(),
+        content_type.unwrap_or_default(),
+        size,
+        file_name.unwrap_or_default()
     )
-)]
-struct ApiDoc;
-
-#[tokio::main]
-async fn main() {
-    // initialize tracing
-    tracing_subscriber::fmt::init();
-
-    // build our application with a route
-    let app = Router::new()
-        .route("/upload", post(upload))
-        .merge(SwaggerUi::new("/docs").url("/api-doc/openapi.json", ApiDoc::openapi()));
-
-    // run it
-    let addr = "0.0.0.0:8080";
-    tracing::info!("listening on {}", addr);
-    axum::Server::bind(&addr.parse().unwrap())
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
 }
