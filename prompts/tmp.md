@@ -1,10 +1,10 @@
-Could you go ahead and fill out first barebone on this project. 
+When I run this crate I get the following error.
+thread 'main' panicked at src/main.rs:11:17:
+Overlapping method route. Cannot add two method routes that both handle `POST`
 
-Namely this is a project that tries to process pdfs with very high throughput.
+Before you finish your task run `cargo check` to make sure you havent made any mistakes.
 
-To start off could you make an endpoint that would just take a pdf upload through a post request, then return "Successfully ingested"
-
-Read the exisiting file and add utoipa documentation to any new docs you add. Before you finish your task run `cargo check` to make sure you havent made any mistakes.
+Also you can look up documentation for axum by using the context7 tool.
 
 
 
