@@ -7,14 +7,14 @@ use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 use utoipa_swagger_ui::SwaggerUi;
 
-const CUSTOMER_TAG: &str = "customer";
-const ORDER_TAG: &str = "order";
+const DOCS_TAG: &str = "docs";
+const ADMIN_TAG: &str = "admin";
 
 #[derive(OpenApi)]
 #[openapi(
     tags(
-        (name = CUSTOMER_TAG, description = "Customer API endpoints"),
-        (name = ORDER_TAG, description = "Order API endpoints")
+        (name = DOCS_TAG, description = "Document API endpoints"),
+        (name = ADMIN_TAG, description = "Admin API endpoints")
     )
 )]
 struct ApiDoc;
@@ -35,12 +35,8 @@ async fn health() -> &'static str {
 async fn main() -> Result<(), io::Error> {
     let (router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
         .routes(routes!(health))
-        .nest("/api/customer", customer::router())
-        .nest("/api/order", order::router())
-        .routes(routes!(
-            inner::secret_handlers::get_secret,
-            inner::secret_handlers::post_secret
-        ))
+        .nest("/api/docs", docs::router())
+        .nest("/api/admin", admin::router())
         .split_for_parts();
 
     let router = router.merge(SwaggerUi::new("/swagger-ui").url("/apidoc/openapi.json", api));
@@ -49,7 +45,7 @@ async fn main() -> Result<(), io::Error> {
     axum::serve(listener, router).await
 }
 
-mod customer {
+mod docs {
     use axum::Json;
     use serde::Serialize;
     use utoipa::ToSchema;
@@ -70,7 +66,7 @@ mod customer {
     /// Get customer
     ///
     /// Just return a static Customer object
-    #[utoipa::path(get, path = "", responses((status = OK, body = Customer)), tag = super::CUSTOMER_TAG)]
+    #[utoipa::path(get, path = "", responses((status = OK, body = Customer)), tag = super::DOCS_TAG)]
     async fn get_customer() -> Json<Customer> {
         Json(Customer {
             name: String::from("Bill Book"),
@@ -78,7 +74,7 @@ mod customer {
     }
 }
 
-mod order {
+mod admin {
     use axum::Json;
     use serde::{Deserialize, Serialize};
     use utoipa::ToSchema;
@@ -103,7 +99,7 @@ mod order {
     }
 
     /// Get static order object
-    #[utoipa::path(get, path = "", responses((status = OK, body = Order)), tag = super::ORDER_TAG)]
+    #[utoipa::path(get, path = "", responses((status = OK, body = Order)), tag = super::ADMIN_TAG)]
     async fn get_order() -> Json<Order> {
         Json(Order {
             id: 100,
@@ -114,28 +110,11 @@ mod order {
     /// Create an order.
     ///
     /// Create an order by basically passing through the name of the request with static id.
-    #[utoipa::path(post, path = "", responses((status = OK, body = Order)), tag = super::ORDER_TAG)]
+    #[utoipa::path(post, path = "", responses((status = OK, body = Order)), tag = super::ADMIN_TAG)]
     async fn create_order(Json(order): Json<OrderRequest>) -> Json<Order> {
         Json(Order {
             id: 120,
             name: order.name,
         })
-    }
-}
-
-mod inner {
-    pub mod secret_handlers {
-
-        /// This is some secret inner handler
-        #[utoipa::path(get, path = "/api/inner/secret", responses((status = OK, body = str)))]
-        pub async fn get_secret() -> &'static str {
-            "secret"
-        }
-
-        /// Post some secret inner handler
-        #[utoipa::path(post, path = "/api/inner/secret", responses((status = OK)))]
-        pub async fn post_secret() {
-            println!("You posted a secret")
-        }
     }
 }
