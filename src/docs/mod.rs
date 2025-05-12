@@ -24,16 +24,6 @@ pub enum ProcessingStage {
     Processing,
 }
 
-/// Ingest a PDF file via multipart/form-data
-// #[utoipa::path(
-//     post,
-//     path = "/ingest",
-//     request_body(content = DocIngestParams, content_type = "multipart/form-data"),
-//     responses(
-//         (status = 200, description = "PDF successfully ingested", body = DocStatusResponse)
-//     ),
-//     tag = super::DOCS_TAG
-// )]
 async fn pdf_ingest(mut multipart: Multipart) -> Json<DocStatusResponse> {
     while let Some(field) = multipart.next_field().await.unwrap() {
         if let Some(name) = field.name() {
@@ -57,18 +47,6 @@ async fn pdf_ingest(mut multipart: Multipart) -> Json<DocStatusResponse> {
     Json(make_default_response(task_id))
 }
 
-/// Get PDF status by task_id
-// #[utoipa::path(
-//     get,
-//     path = "/status/{task_id}",
-//     responses(
-//         (status = 200, description = "Got PDF Status", body = DocStatusResponse)
-//     ),
-//     params(
-//         ("task_id" = Uuid, Path, description = "Task ID for PDF."),
-//     ),
-//     tag = super::DOCS_TAG
-// )]
 async fn pdf_get_status(Path(task_id): Path<TaskID>) -> impl IntoApiResponse {
     Json(make_default_response(task_id))
 }
