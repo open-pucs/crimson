@@ -7,23 +7,10 @@ use aide::{
     swagger::Swagger,
 };
 use axum::{Extension, Json};
-use schemars::JsonSchema;
-use serde::Deserialize;
 
 use std::net::{Ipv4Addr, SocketAddr};
 
 mod docs;
-
-// We'll need to derive `JsonSchema` for
-// all types that appear in the api documentation.
-#[derive(Deserialize, JsonSchema)]
-struct User {
-    name: String,
-}
-
-async fn hello_user(Json(user): Json<User>) -> impl IntoApiResponse {
-    format!("hello {}", user.name)
-}
 
 // Note that this clones the document on each request.
 // To be more efficient, we could wrap it into an Arc,
@@ -35,7 +22,7 @@ async fn serve_api(Extension(api): Extension<OpenApi>) -> impl IntoApiResponse {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Build our application with routes
     let app = ApiRouter::new()
-        .route("/v1/health", get(health))
+        .api_route("/v1/health", get(health))
         .route("/api.json", get(serve_api))
         .route("/swagger", Swagger::new("/api.json").axum_route())
         .nest("/v1/docs", docs::router())

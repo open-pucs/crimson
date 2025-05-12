@@ -12,6 +12,6 @@ serde = { version = "1.0", features = ["derive"] }
 bytes = "1.4"
 tracing-subscriber = "0.3"
 markdownify = "0.1.5"
-aide = { version = "0.14.2", features = ["axum", "axum-json", "axum-multipart", "axum-query", "swagger"] }
+aide = { version = "0.14.2", features = ["axum", "axum-json", "axum-matched-path", "axum-multipart", "axum-query", "swagger"] }
 schemars = { version = "0.8.22", features = ["uuid"] }
 rand = "0.9.1"
