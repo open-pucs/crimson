@@ -15,24 +15,17 @@ pub enum ProcessingStage {
     Processing,
 }
 
-// PDF Processing Data.
-#[derive(ToSchema, Deserialize, Serialize)]
-struct PdfProcessingInfo {
-    id: Uuid, // Figure out what a proper type for a uuid in rust is.
-    process_stage: ProcessingStage,
-}
-
 /// Ingest a PDF file via multipart/form-data
 #[utoipa::path(
     post,
-    path = "/api/ingest",
+    path = "/ingest",
     request_body(content = DocIngestParams, content_type = "multipart/form-data"),
     responses(
-        (status = 200, description = "PDF successfully ingested", body = String)
+        (status = 200, description = "PDF successfully ingested", body = DocStatusResponse)
     ),
      tag = super::DOCS_TAG
 )]
-async fn pdf_ingest(mut multipart: Multipart) -> Json<PdfProcessingInfo> {
+async fn pdf_ingest(mut multipart: Multipart) -> Json<DocStatusResponse> {
     while let Some(field) = multipart.next_field().await.unwrap() {
         if let Some(name) = field.name() {
             if name == "file" {
@@ -42,17 +35,31 @@ async fn pdf_ingest(mut multipart: Multipart) -> Json<PdfProcessingInfo> {
         }
     }
 
+    let task_id = Uuid::new_v4();
+    // Send this task queue/
 
-    let task_id = Uuid::new_v4()
-    Json(PdfProcessingInfo {
-        id: Uuid::new_v4(),
-        process_stage: ProcessingStage::Waiting,
-    })
+    Json(make_default_response(task_id))
+}
+
+#[utoipa::path(
+    get,
+    path = "/status/{task_id}",
+    responses(
+        (status = 200, description = "Got PDF Status", body = DocStatusResponse)
+    ),
+    params(
+            ("task_id" = Uuid, Path, description = "Task ID for PDF."),
+        ),
+     tag = super::DOCS_TAG
+)]
+async fn pdf_get_status(task_id: Uuid) -> Json<DocStatusResponse> {
+    // let task_id = Uuid::new_v4();
+    Json(make_default_response(task_id))
 }
 
 /// expose the Customer OpenAPI to parent module
 pub fn router() -> OpenApiRouter {
-    OpenApiRouter::new().routes(routes!(pdf_ingest))
+    OpenApiRouter::new().routes(routes!(pdf_get_status, pdf_ingest))
 }
 
 /// Parameters for ingesting a document.
@@ -88,7 +95,7 @@ pub struct DocStatusResponse {
     /// Unique request ID.
     pub request_id: Uuid,
     /// Optional URL to poll for processing (none if already complete).
-    pub request_check_url: Option<String>,
+    pub request_check_url: String,
     /// Markdown output (if requested).
     pub markdown: Option<String>,
     /// Current processing stage.
@@ -103,6 +110,24 @@ pub struct DocStatusResponse {
     pub error: Option<String>,
     /// Number of pages processed.
     pub page_count: Option<u32>,
+}
+
+fn make_request_url(id: Uuid) -> String {
+    "/test".to_string() + &id.to_string()
+}
+
+fn make_default_response(id: Uuid) -> DocStatusResponse {
+    DocStatusResponse {
+        request_id: id,
+        request_check_url: make_request_url(id),
+        markdown: None,
+        status: ProcessingStage::Waiting,
+        success: false,
+        metadata: None,
+        images: None,
+        error: None,
+        page_count: None,
+    }
 }
 
 // use axum::extract::{Multipart, Path};
