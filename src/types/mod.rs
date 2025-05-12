@@ -1,6 +1,6 @@
+use async_trait::async_trait;
 use std::collections::HashMap;
 use thiserror::Error;
-use async_trait::async_trait;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -84,23 +84,20 @@ pub struct TaskMessage {
 }
 
 /// Abstract file storage (upload/download/delete).
-#[async_trait]
-pub trait FileStore {
+pub trait FileStoreImplementation {
     async fn upload(&self, data: &[u8], dest: &FileLocation) -> Result<(), StoreError>;
     async fn download(&self, src: &FileLocation) -> Result<Vec<u8>, StoreError>;
     async fn delete(&self, target: &FileLocation) -> Result<(), StoreError>;
 }
 
 /// Abstract FIFO task queue for enqueuing and dequeuing tasks.
-#[async_trait]
-pub trait TaskQueue {
-    async fn enqueue(&self, task: TaskMessage) -> Result<(), QueueError>;
-    async fn dequeue(&self) -> Result<Option<TaskMessage>, QueueError>;
+pub trait TaskQueueImplementation {
+    async fn enqueue(self, task: TaskMessage) -> Result<(), QueueError>;
+    async fn dequeue(self) -> Result<Option<TaskMessage>, QueueError>;
 }
 
 /// Metadata store for tracking processing stage and other data.
-#[async_trait]
-pub trait StatusStore {
+pub trait StatusStoreImplementation {
     async fn set_doc_status(&self, status: DocStatus) -> Result<(), DocStatusError>;
     async fn get_doc_status(&self, id: TaskID) -> Result<DocStatus, DocStatusError>;
 }
@@ -137,3 +134,4 @@ pub enum DocStatusError {
     #[error("Serialization error: {0}")]
     Serde(#[from] serde_json::Error),
 }
+

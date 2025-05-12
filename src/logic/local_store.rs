@@ -1,19 +1,15 @@
-use std::{collections::{HashMap, VecDeque}, path::{Path, PathBuf}, sync::Arc};
-use tokio::fs;
 use async_trait::async_trait;
+use std::{
+    collections::{HashMap, VecDeque},
+    path::{Path, PathBuf},
+    sync::Arc,
+};
+use tokio::fs;
 use tokio::sync::Mutex;
 
 use crate::types::{
-    DocStatus,
-    DocStatusError,
-    FileLocation,
-    QueueError,
-    StoreError,
-    TaskID,
-    TaskMessage,
-    FileStore as FileStoreTrait,
-    StatusStore as StatusStoreTrait,
-    TaskQueue as TaskQueueTrait,
+    DocStatus, DocStatusError, FileLocation, FileStoreImplementation, QueueError,
+    StatusStoreImplementation, StoreError, TaskID, TaskMessage, TaskQueueImplementation,
 };
 
 /// Local filesystem-based implementation of FileStore.
@@ -31,16 +27,20 @@ impl LocalFileStore {
     }
 }
 
-#[async_trait]
-impl FileStoreTrait for LocalFileStore {
+// #[async_trait]
+impl FileStoreImplementation for LocalFileStore {
     async fn upload(&self, data: &[u8], dest: &FileLocation) -> Result<(), StoreError> {
         match dest {
             FileLocation::LocalPath(rel) => {
                 let path = self.base_path.join(rel);
                 if let Some(dir) = path.parent() {
-                    fs::create_dir_all(dir).await.map_err(|_| StoreError::InvalidLocation)?;
+                    fs::create_dir_all(dir)
+                        .await
+                        .map_err(|_| StoreError::InvalidLocation)?;
                 }
-                fs::write(&path, data).await.map_err(|_| StoreError::InvalidLocation)?;
+                fs::write(&path, data)
+                    .await
+                    .map_err(|_| StoreError::InvalidLocation)?;
                 Ok(())
             }
             _ => Err(StoreError::InvalidLocation),
@@ -51,7 +51,9 @@ impl FileStoreTrait for LocalFileStore {
         match src {
             FileLocation::LocalPath(rel) => {
                 let path = self.base_path.join(rel);
-                let data = fs::read(&path).await.map_err(|_| StoreError::InvalidLocation)?;
+                let data = fs::read(&path)
+                    .await
+                    .map_err(|_| StoreError::InvalidLocation)?;
                 Ok(data)
             }
             _ => Err(StoreError::InvalidLocation),
@@ -62,7 +64,9 @@ impl FileStoreTrait for LocalFileStore {
         match target {
             FileLocation::LocalPath(rel) => {
                 let path = self.base_path.join(rel);
-                fs::remove_file(&path).await.map_err(|_| StoreError::InvalidLocation)?;
+                fs::remove_file(&path)
+                    .await
+                    .map_err(|_| StoreError::InvalidLocation)?;
                 Ok(())
             }
             _ => Err(StoreError::InvalidLocation),
@@ -85,15 +89,15 @@ impl InMemoryTaskQueue {
     }
 }
 
-#[async_trait]
-impl TaskQueueTrait for InMemoryTaskQueue {
-    async fn enqueue(&self, task: TaskMessage) -> Result<(), QueueError> {
+// #[async_trait]
+impl TaskQueueImplementation for InMemoryTaskQueue {
+    async fn enqueue(self, task: TaskMessage) -> Result<(), QueueError> {
         let mut q = self.queue.lock().await;
         q.push_back(task);
         Ok(())
     }
 
-    async fn dequeue(&self) -> Result<Option<TaskMessage>, QueueError> {
+    async fn dequeue(self) -> Result<Option<TaskMessage>, QueueError> {
         let mut q = self.queue.lock().await;
         Ok(q.pop_front())
     }
@@ -114,8 +118,8 @@ impl InMemoryStatusStore {
     }
 }
 
-#[async_trait]
-impl StatusStoreTrait for InMemoryStatusStore {
+// #[async_trait]
+impl StatusStoreImplementation for InMemoryStatusStore {
     async fn set_doc_status(&self, status: DocStatus) -> Result<(), DocStatusError> {
         let mut m = self.store.lock().await;
         m.insert(status.request_id, status);
@@ -131,3 +135,4 @@ impl StatusStoreTrait for InMemoryStatusStore {
         }
     }
 }
+
