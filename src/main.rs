@@ -11,6 +11,7 @@ use axum::{Extension, Json};
 use std::net::{Ipv4Addr, SocketAddr};
 
 mod api;
+mod logic;
 mod types;
 
 // Note that this clones the document on each request.

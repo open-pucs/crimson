@@ -11,42 +11,43 @@ use std::io::Read;
 // use utoipa_axum::routes;
 // use uuid::Uuid;
 
-use crate::types::{DocStatus, FileLocation, TaskID, make_default_response};
+use crate::logic::{get_task_data_from_id, ingest_file_to_queue};
+use crate::types::{DocStatus, DocStatusResponse, FileLocation, TaskID, make_new_docstatus};
 
-async fn pdf_ingest(mut multipart: Multipart) -> Json<DocStatus> {
+async fn pdf_ingest(mut multipart: Multipart) -> Result<Json<DocStatusResponse>, String> {
     let task_id: TaskID = make_task_id();
-    let default_response = make_default_response(task_id);
     while let Some(field) = multipart.next_field().await.unwrap() {
         if let Some(name) = field.name() {
             if name == "file" {
                 let _bytes = field.bytes().await.expect("should be bytes for pdf field");
                 let file_path = "/tmp/save/to/this/path".to_string() + &task_id.to_string();
                 let file_location = FileLocation::LocalPath(file_path);
-                ingest_file_to_queue(default_response.clone(), file_location);
-
-                break;
+                let task_status = make_new_docstatus(task_id, file_location);
+                ingest_file_to_queue(task_status.clone()).await;
+                return Ok(Json(task_status.into()));
             }
         }
     }
 
     // let task_id = Uuid::new_v4();
     // TODO: send to processing queue
-
-    Json(default_response)
+    Err("Multipart was improperely formatted".into())
 }
-async fn pdf_ingest_s3(Json(ingest_params): Json<DocIngestParamsS3>) -> Json<DocStatus> {
+async fn pdf_ingest_s3(
+    Json(ingest_params): Json<DocIngestParamsS3>,
+) -> Result<Json<DocStatusResponse>, String> {
     let task_id: TaskID = make_task_id();
     let file_location = FileLocation::S3Uri(ingest_params.s3_uri);
-    let default_response = make_default_response(task_id);
-    ingest_file_to_queue(default_response.clone(), file_location);
+
+    let task_status = make_new_docstatus(task_id, file_location);
+    ingest_file_to_queue(task_status.clone()).await;
+    Ok(Json(task_status.into()))
 
     // let task_id = Uuid::new_v4();
     // TODO: send to processing queue
-
-    Json(default_response)
 }
-async fn pdf_get_status(Path(task_id): Path<TaskID>) -> impl IntoApiResponse {
-    Json(make_default_response(task_id))
+async fn pdf_get_status(Path(task_id): Path<TaskID>) -> Json<DocStatusResponse> {
+    Json(get_task_data_from_id(task_id).await.into())
 }
 
 /// Docs module router
@@ -101,8 +102,4 @@ fn make_task_id() -> TaskID {
     f.read_exact(&mut bytes)
         .expect("Failed to read random bytes");
     u64::from_ne_bytes(bytes)
-}
-
-fn ingest_file_to_queue(status: DocStatus, location: FileLocation) {
-    todo!("Implement Ingest to store location.")
 }
