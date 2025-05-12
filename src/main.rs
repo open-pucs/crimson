@@ -10,7 +10,8 @@ use axum::{Extension, Json};
 
 use std::net::{Ipv4Addr, SocketAddr};
 
-mod docs;
+mod api;
+mod types;
 
 // Note that this clones the document on each request.
 // To be more efficient, we could wrap it into an Arc,
@@ -25,8 +26,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .api_route("/v1/health", get(health))
         .route("/api.json", get(serve_api))
         .route("/swagger", Swagger::new("/api.json").axum_route())
-        .nest("/v1/docs", docs::router())
-        .nest("/v1/admin", admin::router());
+        .nest("/v1/", api::router())
+        .nest("/admin/", admin::router());
 
     // bind and serve
     let addr = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 8080);
