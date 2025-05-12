@@ -44,18 +44,18 @@ pub struct DocStatus {
     error: Option<String>,
 }
 
-impl Into<DocStatusResponse> for DocStatus {
-    fn into(self) -> DocStatusResponse {
+impl From<DocStatus> for DocStatusResponse {
+    fn from(input: DocStatus) -> Self {
         // let err_str = self.error.map(|val| val.to_string());
         DocStatusResponse {
-            request_id: self.request_id,
-            request_check_url: make_request_url(self.request_id),
-            markdown: self.markdown,
-            status: self.status,
-            success: self.status == ProcessingStage::Completed,
-            images: self.images,
-            metadata: self.metadata,
-            error: self.error,
+            request_id: input.request_id,
+            request_check_url: make_request_url(input.request_id),
+            markdown: input.markdown,
+            status: input.status,
+            success: input.status == ProcessingStage::Completed,
+            images: input.images,
+            metadata: input.metadata,
+            error: input.error,
         }
     }
 }

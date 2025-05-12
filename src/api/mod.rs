@@ -1,9 +1,9 @@
+use aide::axum::ApiRouter;
 use aide::axum::routing::{get, post};
-use aide::axum::{ApiRouter, IntoApiResponse};
 use axum::Json;
 use axum::extract::{Multipart, Path};
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize, de};
+use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::Read;
 // use utoipa::ToSchema;
@@ -12,7 +12,7 @@ use std::io::Read;
 // use uuid::Uuid;
 
 use crate::logic::{get_task_data_from_id, ingest_file_to_queue};
-use crate::types::{DocStatus, DocStatusResponse, FileLocation, TaskID, make_new_docstatus};
+use crate::types::{DocStatusResponse, FileLocation, TaskID, make_new_docstatus};
 
 async fn pdf_ingest(mut multipart: Multipart) -> Result<Json<DocStatusResponse>, String> {
     let task_id: TaskID = make_task_id();
@@ -60,22 +60,22 @@ pub fn router() -> ApiRouter {
 }
 
 /// Parameters for ingesting a document.
-#[derive(Deserialize, Debug, JsonSchema)]
-pub struct DocIngestParams {
-    /// File to process, sent as binary.
-    // #[schema(format = Binary, content_media_type = "application/octet-stream")]
-    pub file: Vec<u8>,
-    /// Optional comma-separated list of languages for OCR (e.g., "en,fr").
-    pub langs: Option<String>,
-    /// Force OCR on every page.
-    pub force_ocr: Option<bool>,
-    /// Paginate output with page delimiters.
-    pub paginate: Option<bool>,
-    /// Disable image extraction.
-    pub disable_image_extraction: Option<bool>,
-    /// Maximum number of pages to process from the start.
-    pub max_pages: Option<u32>,
-}
+// #[derive(Deserialize, Debug, JsonSchema)]
+// struct DocIngestParams {
+//     /// File to process, sent as binary.
+//     // #[schema(format = Binary, content_media_type = "application/octet-stream")]
+//     pub file: Vec<u8>,
+//     /// Optional comma-separated list of languages for OCR (e.g., "en,fr").
+//     pub langs: Option<String>,
+//     /// Force OCR on every page.
+//     pub force_ocr: Option<bool>,
+//     /// Paginate output with page delimiters.
+//     pub paginate: Option<bool>,
+//     /// Disable image extraction.
+//     pub disable_image_extraction: Option<bool>,
+//     /// Maximum number of pages to process from the start.
+//     pub max_pages: Option<u32>,
+// }
 
 #[derive(Deserialize, Serialize, Debug, JsonSchema)]
 pub struct DocIngestParamsS3 {

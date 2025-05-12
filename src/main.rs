@@ -1,8 +1,5 @@
 use aide::{
-    axum::{
-        ApiRouter, IntoApiResponse,
-        routing::{get, post},
-    },
+    axum::{ApiRouter, IntoApiResponse, routing::get},
     openapi::{Info, OpenApi},
     swagger::Swagger,
 };
@@ -63,7 +60,7 @@ async fn health() -> &'static str {
 
 mod admin {
     use aide::axum::{ApiRouter, IntoApiResponse, routing::get};
-    use axum::{Json, Router};
+    use axum::Json;
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
 
