@@ -1,8 +1,8 @@
 use std::collections::HashMap;
+use thiserror::Error;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-mod storage;
 
 pub type TaskID = u64;
 
@@ -38,6 +38,7 @@ fn make_request_url(id: TaskID) -> String {
 pub struct DocStatus {
     file_location: FileLocation,
     request_id: TaskID,
+    // queue_id: u64,
     markdown: Option<String>,
     status: ProcessingStage,
     images: Option<HashMap<String, String>>,
@@ -70,4 +71,63 @@ pub fn make_new_docstatus(id: TaskID, location: FileLocation) -> DocStatus {
         images: None,
         error: None,
     }
+}
+
+/// Simplified task message carrying ID and file location.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct TaskMessage {
+    pub id: TaskID,
+    pub location: FileLocation,
+}
+
+/// Abstract file storage (upload/download/delete).
+pub trait FileStore {
+    async fn upload(&self, data: &[u8], dest: &FileLocation) -> Result<(), StoreError>;
+    async fn download(&self, src: &FileLocation) -> Result<Vec<u8>, StoreError>;
+    async fn delete(&self, target: &FileLocation) -> Result<(), StoreError>;
+}
+
+/// Abstract FIFO task queue for enqueuing and dequeuing tasks.
+pub trait TaskQueue {
+    async fn enqueue(&self, task: TaskMessage) -> Result<(), QueueError>;
+    async fn dequeue(&self) -> Result<Option<TaskMessage>, QueueError>;
+}
+
+/// Metadata store for tracking processing stage and other data.
+pub trait StatusStore {
+    async fn set_doc_status(&self, status: DocStatus) -> Result<(), DocStatusError>;
+    async fn get_doc_status(&self, id: TaskID) -> Result<DocStatus, DocStatusError>;
+}
+
+// Errors for file storage operations on S3.
+#[derive(Error, Debug)]
+pub enum StoreError {
+    #[error("S3 error: {0}")]
+    S3(#[from] aws_sdk_s3::Error),
+    #[error("Serialization error: {0}")]
+    Serde(#[from] serde_json::Error),
+    #[error("Invalid file location for S3")]
+    InvalidLocation,
+}
+
+/// Errors for queue operations on Redis.
+#[derive(Error, Debug)]
+pub enum QueueError {
+    #[error("Processing Queue is Empty")]
+    QueueEmpty,
+    #[error("Redis error: {0}")]
+    Redis(#[from] redis::RedisError),
+    #[error("Serialization error: {0}")]
+    Serde(#[from] serde_json::Error),
+}
+
+/// Errors for metadata store operations on Redis.
+#[derive(Error, Debug)]
+pub enum DocStatusError {
+    #[error("Doc ID Not Found")]
+    DocidNotFound,
+    #[error("Redis error: {0}")]
+    Redis(#[from] redis::RedisError),
+    #[error("Serialization error: {0}")]
+    Serde(#[from] serde_json::Error),
 }
