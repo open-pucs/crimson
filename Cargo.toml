@@ -16,3 +16,4 @@ utoipa = { version = "5.3.1", features = ["time", "url", "uuid"] }
 utoipa-axum = "0.2.0"
 utoipa-swagger-ui = { version = "9.0.1", features = ["axum"] }
 uuid = { version = "1.16.0", features = ["rng", "serde", "v4"] }
+markdownify = "0.1.5"

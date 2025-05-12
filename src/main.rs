@@ -7,6 +7,8 @@ use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 use utoipa_swagger_ui::SwaggerUi;
 
+mod docs;
+
 const DOCS_TAG: &str = "docs";
 const ADMIN_TAG: &str = "admin";
 
@@ -44,67 +46,6 @@ async fn main() -> Result<(), io::Error> {
 
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 8080)).await?;
     axum::serve(listener, router).await
-}
-
-mod docs {
-    use axum::Json;
-    use axum::extract::Multipart;
-    use serde::{Deserialize, Serialize};
-    use utoipa::ToSchema;
-    use utoipa_axum::router::OpenApiRouter;
-    use utoipa_axum::routes;
-    use uuid::Uuid;
-    #[derive(ToSchema, Serialize, Deserialize)]
-    enum ProcessingStage {
-        Completed,
-        Waiting,
-        Errored,
-        Processing,
-    }
-
-    // PDF Processing Data.
-    #[derive(ToSchema, Deserialize, Serialize)]
-    struct PdfProcessingInfo {
-        id: Uuid, // Figure out what a proper type for a uuid in rust is.
-        process_stage: ProcessingStage,
-    }
-
-    /// PDF upload data
-    #[derive(Deserialize, ToSchema)]
-    pub struct PdfUpload {
-        #[schema(format = Binary, content_media_type = "application/pdf")]
-        pdf: String,
-    }
-
-    /// Ingest a PDF file via multipart/form-data
-    #[utoipa::path(
-    post,
-    path = "/api/ingest",
-    request_body(content = PdfUpload, content_type = "multipart/form-data"),
-    responses(
-        (status = 200, description = "PDF successfully ingested", body = String)
-    ),
-     tag = super::DOCS_TAG
-)]
-    async fn pdf_ingest(mut multipart: Multipart) -> Json<PdfProcessingInfo> {
-        while let Some(field) = multipart.next_field().await.unwrap() {
-            if let Some(name) = field.name() {
-                if name == "pdf" {
-                    let _bytes = field.bytes().await.expect("should be bytes for pdf field");
-                    break;
-                }
-            }
-        }
-        Json(PdfProcessingInfo {
-            id: Uuid::new_v4(),
-            process_stage: ProcessingStage::Waiting,
-        })
-    }
-
-    /// expose the Customer OpenAPI to parent module
-    pub fn router() -> OpenApiRouter {
-        OpenApiRouter::new().routes(routes!(pdf_ingest))
-    }
 }
 
 mod admin {
