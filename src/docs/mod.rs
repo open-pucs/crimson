@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use axum::Json;
 use axum::extract::{Multipart, Path};
-use axum::{Router, routing::{post, get}};
+use axum::{
+    Router,
+    routing::{get, post},
+};
 use serde::{Deserialize, Serialize};
 // use utoipa::ToSchema;
 // use utoipa_axum::router::OpenApiRouter;

@@ -1,6 +1,5 @@
-use std::net::{Ipv4Addr, SocketAddr};
 use axum::{Router, routing::get};
-use hyper::Server;
+use std::net::{Ipv4Addr, SocketAddr};
 
 mod docs;
 
@@ -15,9 +14,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // bind and serve
     let addr = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 8080);
     println!("Listening on http://{}", addr);
-    Server::bind(&addr)
-        .serve(app.into_make_service())
-        .await?;
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    axum::serve(listener, app).await.unwrap();
 
     Ok(())
 }
@@ -28,7 +26,7 @@ async fn health() -> &'static str {
 }
 
 mod admin {
-    use axum::{Router, routing::get, Json};
+    use axum::{Json, Router, routing::get};
     use serde::{Deserialize, Serialize};
 
     #[derive(Serialize, Deserialize)]
@@ -50,3 +48,4 @@ mod admin {
         })
     }
 }
+
