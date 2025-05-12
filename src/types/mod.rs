@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use thiserror::Error;
+use async_trait::async_trait;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -11,6 +12,7 @@ pub enum FileLocation {
     S3Uri(String),
     LocalPath(String),
 }
+
 #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone, Copy)]
 pub enum ProcessingStage {
     Completed,
@@ -30,6 +32,7 @@ pub struct DocStatusResponse {
     metadata: Option<HashMap<String, String>>,
     error: Option<String>,
 }
+
 fn make_request_url(id: TaskID) -> String {
     "/v1/status/".to_string() + &id.to_string()
 }
@@ -37,7 +40,7 @@ fn make_request_url(id: TaskID) -> String {
 #[derive(Debug, Clone)]
 pub struct DocStatus {
     file_location: FileLocation,
-    request_id: TaskID,
+    pub request_id: TaskID,
     // queue_id: u64,
     markdown: Option<String>,
     status: ProcessingStage,
@@ -48,7 +51,6 @@ pub struct DocStatus {
 
 impl From<DocStatus> for DocStatusResponse {
     fn from(input: DocStatus) -> Self {
-        // let err_str = self.error.map(|val| val.to_string());
         DocStatusResponse {
             request_id: input.request_id,
             request_check_url: make_request_url(input.request_id),
@@ -61,6 +63,7 @@ impl From<DocStatus> for DocStatusResponse {
         }
     }
 }
+
 pub fn make_new_docstatus(id: TaskID, location: FileLocation) -> DocStatus {
     DocStatus {
         file_location: location,
@@ -74,13 +77,14 @@ pub fn make_new_docstatus(id: TaskID, location: FileLocation) -> DocStatus {
 }
 
 /// Simplified task message carrying ID and file location.
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TaskMessage {
     pub id: TaskID,
     pub location: FileLocation,
 }
 
 /// Abstract file storage (upload/download/delete).
+#[async_trait]
 pub trait FileStore {
     async fn upload(&self, data: &[u8], dest: &FileLocation) -> Result<(), StoreError>;
     async fn download(&self, src: &FileLocation) -> Result<Vec<u8>, StoreError>;
@@ -88,12 +92,14 @@ pub trait FileStore {
 }
 
 /// Abstract FIFO task queue for enqueuing and dequeuing tasks.
+#[async_trait]
 pub trait TaskQueue {
     async fn enqueue(&self, task: TaskMessage) -> Result<(), QueueError>;
     async fn dequeue(&self) -> Result<Option<TaskMessage>, QueueError>;
 }
 
 /// Metadata store for tracking processing stage and other data.
+#[async_trait]
 pub trait StatusStore {
     async fn set_doc_status(&self, status: DocStatus) -> Result<(), DocStatusError>;
     async fn get_doc_status(&self, id: TaskID) -> Result<DocStatus, DocStatusError>;

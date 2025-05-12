@@ -1,6 +1,5 @@
-mod served_backend;
+mod local_store;
 
-use crate::logic::served_backend::*;
 use crate::types::{DocStatus, TaskID};
 
 pub async fn ingest_file_to_queue(status: DocStatus) {
