@@ -5,11 +5,12 @@ use serde::{Deserialize, Serialize};
 
 pub type TaskID = u64;
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum FileLocation {
     S3Uri(String),
     LocalPath(String),
 }
-#[derive(Serialize, Deserialize, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, JsonSchema, Clone, Copy)]
 pub enum ProcessingStage {
     Completed,
     Waiting,
@@ -17,7 +18,7 @@ pub enum ProcessingStage {
     Processing,
 }
 
-#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
 pub struct DocStatus {
     /// Unique request ID.
     pub request_id: TaskID,
