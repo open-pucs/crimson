@@ -1,21 +1,68 @@
-use axum::{Router, routing::get};
+use aide::{
+    axum::{
+        ApiRouter, IntoApiResponse,
+        routing::{get, post},
+    },
+    openapi::{Info, OpenApi},
+    swagger::Swagger,
+};
+use axum::{Extension, Json};
+use schemars::JsonSchema;
+use serde::Deserialize;
+
 use std::net::{Ipv4Addr, SocketAddr};
 
 mod docs;
 
+// We'll need to derive `JsonSchema` for
+// all types that appear in the api documentation.
+#[derive(Deserialize, JsonSchema)]
+struct User {
+    name: String,
+}
+
+async fn hello_user(Json(user): Json<User>) -> impl IntoApiResponse {
+    format!("hello {}", user.name)
+}
+
+// Note that this clones the document on each request.
+// To be more efficient, we could wrap it into an Arc,
+// or even store it as a serialized string.
+async fn serve_api(Extension(api): Extension<OpenApi>) -> impl IntoApiResponse {
+    Json(api)
+}
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Build our application with routes
-    let app = Router::new()
-        .route("/api/health", get(health).head(health))
-        .nest("/api/docs", docs::router())
-        .nest("/api/admin", admin::router());
+    let app = ApiRouter::new()
+        .route("/v1/health", get(health))
+        .route("/api.json", get(serve_api))
+        .route("/swagger", Swagger::new("/api.json").axum_route())
+        .nest("/v1/docs", docs::router())
+        .nest("/v1/admin", admin::router());
 
     // bind and serve
     let addr = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 8080);
     println!("Listening on http://{}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    let mut api = OpenApi {
+        info: Info {
+            description: Some("A library for Cheaply Batch Processing PDF's".to_string()),
+            ..Info::default()
+        },
+        ..OpenApi::default()
+    };
+    axum::serve(
+        listener,
+        app
+            // Generate the documentation.
+            .finish_api(&mut api)
+            // Expose the documentation to the handlers.
+            .layer(Extension(api))
+            .into_make_service(),
+    )
+    .await
+    .unwrap();
 
     Ok(())
 }
@@ -26,26 +73,27 @@ async fn health() -> &'static str {
 }
 
 mod admin {
-    use axum::{Json, Router, routing::get};
+    use aide::axum::{ApiRouter, IntoApiResponse, routing::get};
+    use axum::{Json, Router};
+    use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
 
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, JsonSchema)]
     struct ServerInfo {
         name: String,
         version: String,
     }
 
     /// Expose admin routes
-    pub fn router() -> Router {
-        Router::new().route("/info", get(get_server_info))
+    pub fn router() -> ApiRouter {
+        ApiRouter::new().api_route("/info", get(get_server_info))
     }
 
     /// Get static server info
-    async fn get_server_info() -> Json<ServerInfo> {
+    async fn get_server_info() -> impl IntoApiResponse {
         Json(ServerInfo {
             name: "Crimson".into(),
             version: "0.0".into(),
         })
     }
 }
-
