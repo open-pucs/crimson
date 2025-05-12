@@ -106,7 +106,7 @@ pub enum StoreError {
     S3(#[from] aws_sdk_s3::Error),
     #[error("Serialization error: {0}")]
     Serde(#[from] serde_json::Error),
-    #[error("Invalid file location for S3")]
+    #[error("Invalid file location for File")]
     InvalidLocation,
 }
 
