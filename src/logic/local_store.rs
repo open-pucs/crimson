@@ -124,7 +124,7 @@ impl FileStoreImplementation for LocalFileStore {
                 fs::write(&full_path, &bytes)
                     .await
                     .map_err(|_| StoreError::LocalFile)?;
-                Ok(rel_path)
+                Ok(full_path)
             }
         }
     }

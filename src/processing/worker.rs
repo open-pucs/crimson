@@ -45,6 +45,10 @@ async fn process_pdf_from_status(mut status: DocStatus) -> Result<(), String> {
     let markdown_res = match download_result {
         Ok(local_path) => {
             // Process PDF to markdown
+            println!(
+                "Downloaded result successfully, processing pdf at: {}",
+                &local_path.to_string_lossy()
+            );
             cheaply_process_pdf_path(&local_path)
         }
         Err(err) => {
@@ -56,20 +60,21 @@ async fn process_pdf_from_status(mut status: DocStatus) -> Result<(), String> {
     };
 
     // Update status based on processing result
-    match markdown_res {
+    match markdown_res.map_err(|err| err.to_string()) {
         Ok(markdown) => {
             status.markdown = Some(markdown);
             status.status = ProcessingStage::Completed;
+            println!("Successfully processed pdf");
             match update_task_data(status).await {
                 Ok(_) => Ok(()),
                 Err(err) => Err(err.to_string()),
             }
         }
-        Err(err) => {
-            status.error = Some(err.clone());
+        Err(err_str) => {
+            status.error = Some(err_str.clone());
             status.status = ProcessingStage::Errored;
             let _ = update_task_data(status).await;
-            Err(err)
+            Err(err_str.clone())
         }
     }
 }

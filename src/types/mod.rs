@@ -1,7 +1,5 @@
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use lazy_static::lazy_static;
+use std::{collections::HashMap, path::PathBuf};
 use thiserror::Error;
 
 use schemars::JsonSchema;
@@ -37,8 +35,13 @@ pub struct DocStatusResponse {
     error: Option<String>,
 }
 
+lazy_static! {
+    pub static ref DOMAIN: String =
+        std::env::var("DOMAIN").expect("DOMAIN environment variable must be set");
+}
+
 fn make_request_url(id: TaskID) -> String {
-    "/v1/status/".to_string() + &id.to_string()
+    format!("{}/v1/status/{}", &*DOMAIN, id)
 }
 
 #[derive(Debug, Clone)]
