@@ -9,6 +9,7 @@ use std::net::{Ipv4Addr, SocketAddr};
 
 mod api;
 mod logic;
+mod processing;
 mod types;
 
 // Note that this clones the document on each request.
