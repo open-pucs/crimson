@@ -43,7 +43,7 @@ pub async fn ingest_file_to_queue(status: DocStatus) {
         id: status.request_id,
         location: status.file_location.clone(),
     };
-    let _ = LOCAL_STORE
+    LOCAL_STORE
         .task_queue
         .clone()
         .enqueue(message)

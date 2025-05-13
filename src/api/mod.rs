@@ -9,7 +9,9 @@ use std::io::Read;
 use std::path::PathBuf;
 
 use crate::logic::{get_task_data_from_id, ingest_file_to_queue};
-use crate::types::{DocStatusResponse, FileLocation, TaskID, make_new_docstatus};
+use crate::types::{
+    DocStatusResponse, FileLocation, S3Location, StoreError, TaskID, make_new_docstatus,
+};
 
 async fn pdf_ingest(mut multipart: Multipart) -> Result<Json<DocStatusResponse>, String> {
     let task_id: TaskID = make_task_id();
@@ -31,7 +33,8 @@ async fn pdf_ingest_s3(
     Json(ingest_params): Json<DocIngestParamsS3>,
 ) -> Result<Json<DocStatusResponse>, String> {
     let task_id: TaskID = make_task_id();
-    let file_location = FileLocation::S3Location(ingest_params.s3_uri);
+    let s3_result: Result<S3Location, StoreError> = ingest_params.s3_uri.try_into();
+    let file_location = FileLocation::S3Location(s3_result.map_err(|err| err.to_string())?);
     let task_status = make_new_docstatus(task_id, file_location);
     ingest_file_to_queue(task_status.clone()).await;
     Ok(Json(task_status.into()))
