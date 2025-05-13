@@ -1,5 +1,7 @@
-use async_trait::async_trait;
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 use thiserror::Error;
 
 use schemars::JsonSchema;
@@ -10,8 +12,10 @@ pub type TaskID = u64;
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
 pub enum FileLocation {
     S3Uri(String),
-    LocalPath(String),
+    LocalPath(PathBuf),
 }
+
+pub type LocalPath = PathBuf;
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone, Copy)]
 pub enum ProcessingStage {
@@ -84,10 +88,14 @@ pub struct TaskMessage {
 }
 
 /// Abstract file storage (upload/download/delete).
-#[async_trait]
+// #[async_trait]
 pub trait FileStoreImplementation {
-    async fn upload(&self, data: &[u8], dest: &FileLocation) -> Result<(), StoreError>;
-    async fn download(&self, src: &FileLocation) -> Result<Vec<u8>, StoreError>;
+    async fn upload_from_file(
+        &self,
+        local_path: LocalPath,
+        upload_key: String,
+    ) -> Result<FileLocation, StoreError>;
+    async fn download_to_file(&self, src: &FileLocation) -> Result<LocalPath, StoreError>;
     async fn delete(&self, target: &FileLocation) -> Result<(), StoreError>;
 }
 
@@ -135,3 +143,4 @@ pub enum DocStatusError {
     #[error("Serialization error: {0}")]
     Serde(#[from] serde_json::Error),
 }
+

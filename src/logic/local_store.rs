@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use std::{
     collections::{HashMap, VecDeque},
     path::{Path, PathBuf},
@@ -8,7 +7,7 @@ use tokio::fs;
 use tokio::sync::Mutex;
 
 use crate::types::{
-    DocStatus, DocStatusError, FileLocation, FileStoreImplementation, QueueError,
+    DocStatus, DocStatusError, FileLocation, FileStoreImplementation, LocalPath, QueueError,
     StatusStoreImplementation, StoreError, TaskID, TaskMessage, TaskQueueImplementation,
 };
 
@@ -27,36 +26,21 @@ impl LocalFileStore {
     }
 }
 
-// #[async_trait]
 impl FileStoreImplementation for LocalFileStore {
-    async fn upload(&self, data: &[u8], dest: &FileLocation) -> Result<(), StoreError> {
-        match dest {
-            FileLocation::LocalPath(rel) => {
-                let path = self.base_path.join(rel);
-                if let Some(dir) = path.parent() {
-                    fs::create_dir_all(dir)
-                        .await
-                        .map_err(|_| StoreError::InvalidLocation)?;
-                }
-                fs::write(&path, data)
-                    .await
-                    .map_err(|_| StoreError::InvalidLocation)?;
-                Ok(())
-            }
-            _ => Err(StoreError::InvalidLocation),
-        }
+    async fn upload_from_file(
+        &self,
+        local_path: LocalPath,
+        _: String,
+    ) -> Result<FileLocation, StoreError> {
+        Ok(FileLocation::LocalPath(local_path))
     }
 
-    async fn download(&self, src: &FileLocation) -> Result<Vec<u8>, StoreError> {
+    async fn download_to_file(&self, src: &FileLocation) -> Result<LocalPath, StoreError> {
         match src {
-            FileLocation::LocalPath(rel) => {
-                let path = self.base_path.join(rel);
-                let data = fs::read(&path)
-                    .await
-                    .map_err(|_| StoreError::InvalidLocation)?;
-                Ok(data)
+            FileLocation::LocalPath(rel) => return Ok(rel.clone()),
+            FileLocation::S3Uri(s3_uri) => {
+                todo!("Implement downloading from s3 for local file store implementation")
             }
-            _ => Err(StoreError::InvalidLocation),
         }
     }
 
@@ -135,4 +119,3 @@ impl StatusStoreImplementation for InMemoryStatusStore {
         }
     }
 }
-

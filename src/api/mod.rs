@@ -21,7 +21,7 @@ async fn pdf_ingest(mut multipart: Multipart) -> Result<Json<DocStatusResponse>,
             if name == "file" {
                 let _bytes = field.bytes().await.expect("should be bytes for pdf field");
                 let file_path = "/tmp/save/to/this/path".to_string() + &task_id.to_string();
-                let file_location = FileLocation::LocalPath(file_path);
+                let file_location = FileLocation::LocalPath(file_path.into());
                 let task_status = make_new_docstatus(task_id, file_location);
                 ingest_file_to_queue(task_status.clone()).await;
                 return Ok(Json(task_status.into()));
@@ -47,7 +47,7 @@ async fn pdf_ingest_s3(
     // TODO: send to processing queue
 }
 async fn pdf_get_status(Path(task_id): Path<TaskID>) -> Json<DocStatusResponse> {
-    Json(get_task_data_from_id(task_id).await.into())
+    Json(get_task_data_from_id(task_id).await.unwrap().into())
 }
 
 /// Docs module router

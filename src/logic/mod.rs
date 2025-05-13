@@ -9,7 +9,6 @@ use crate::types::{
 use once_cell::sync::Lazy;
 
 /// A composite store bundling file storage, task queue, and status store.
-#[derive(Clone)]
 pub struct LocalStore {
     pub file_store: LocalFileStore,
     pub task_queue: InMemoryTaskQueue,
@@ -81,4 +80,3 @@ pub async fn get_file_task_from_queue() -> Option<DocStatus> {
 pub async fn get_task_data_from_id(id: TaskID) -> Result<DocStatus, DocStatusError> {
     LOCAL_STORE.status_store.get_doc_status(id).await
 }
-
