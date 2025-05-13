@@ -1,4 +1,4 @@
-I currently have this snippet of code from local store:
+I currently have this snippet of code from local store, this code is in logic/local_store.rs:
 
 ```rs
 
@@ -49,3 +49,14 @@ impl FileStoreImplementation for LocalFileStore {
     }
 }
 ```
+
+
+Could you add some functionality to include an S3 client that would support downloading a file from an s3 uri in that download_to_file method?
+
+
+Keep a living diary of your thoughts at prompts/llm_thoughts.md as you apply stuff and figure it out.
+
+Before you finish your task run ` RUSTFLAGS="-A warnings" cargo check --message-format=short` (Some optimisations to weed out a bunch of unneded tokens) to make sure you havent made any mistakes. Also try to avoid modifying any code that isnt absolutely essential to implement your feature.
+
+Also you can look up documentation for popular rust libraries like tokio, serde and axum by using the context7 tool, its support on less popular libraries is limited unfortunately. Whenever you are stuck with some inscrutable errors, it can be helpful to look up examples to see how the code should be structured.
+

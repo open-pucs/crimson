@@ -10,8 +10,9 @@ This is a program for batch processing pdf's for processing cheaply. It consists
 
 
 
-I finished writing components 1 and 2. Could you go ahead and architect out the code for 3. Keep a living diary of your thoughts at prompts/llm_thoughts.md as you apply stuff and figure it out. Dont forget to start and initialize the workers in the main function.
+I finished writing components 1 and 2. Could you go ahead and architect out the code for 3.  Don't forget to start and initialize the workers in the main function.
 
+Keep a living diary of your thoughts at prompts/llm_thoughts.md as you apply stuff and figure it out.
 
 Before you finish your task run ` RUSTFLAGS="-A warnings" cargo check --message-format=short` (Some optimisations to weed out a bunch of unneded tokens) to make sure you havent made any mistakes. Also try to avoid modifying any code that isnt absolutely essential to implement your feature.
 
