@@ -13,6 +13,8 @@ use crate::types::{
 use aws_config::{self, BehaviorVersion, SdkConfig};
 use aws_sdk_s3::Client;
 
+use super::s3_stuff::make_s3_client;
+
 /// Local filesystem-based implementation of FileStore.
 #[derive(Debug, Clone)]
 pub struct LocalFileStore {
@@ -33,11 +35,11 @@ impl Default for LocalFileStore {
 
 #[derive(Debug, Clone)]
 pub struct S3ConfigParams {
-    endpoint: String,
-    region: String,
-    default_bucket: String,
-    access_key: String,
-    secret_key: String,
+    pub endpoint: String,
+    pub region: String,
+    pub default_bucket: String,
+    pub access_key: String,
+    pub secret_key: String,
 }
 impl Default for S3ConfigParams {
     fn default() -> Self {
@@ -94,16 +96,8 @@ impl FileStoreImplementation for LocalFileStore {
             FileLocation::LocalPath(rel) => Ok(rel.clone()),
             FileLocation::S3Location(s3_loc) => {
                 let bucket = &s3_loc.bucket;
-                let key = &s3_loc.bucket;
-                let region = &s3_loc.region;
-                let endpoint = &s3_loc.endpoint;
-                let access_key = &self.s3_config.access_key;
-                let secret_key = &self.s3_config.secret_key;
-
-                // Parse S3 URI of form s3://bucket/key
-                // Load AWS config and create client
-                let config = aws_config::load_defaults(BehaviorVersion::latest()).await;
-                let client = Client::new(&config);
+                let key = &s3_loc.key;
+                let client = make_s3_client(&self.s3_config, s3_loc).await;
                 // Download object
                 let resp = client
                     .get_object()

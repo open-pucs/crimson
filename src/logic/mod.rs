@@ -1,5 +1,6 @@
 // logic module grouping local_store and interface functions
 mod local_store;
+mod s3_stuff;
 
 use crate::logic::local_store::{InMemoryStatusStore, InMemoryTaskQueue, LocalFileStore};
 use crate::types::{
