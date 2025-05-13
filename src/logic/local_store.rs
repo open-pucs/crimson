@@ -95,6 +95,10 @@ impl FileStoreImplementation for LocalFileStore {
             FileLocation::S3Location(s3_loc) => {
                 let bucket = &s3_loc.bucket;
                 let key = &s3_loc.bucket;
+                let region = &s3_loc.region;
+                let endpoint = &s3_loc.endpoint;
+                let access_key = &self.s3_config.access_key;
+                let secret_key = &self.s3_config.secret_key;
 
                 // Parse S3 URI of form s3://bucket/key
                 // Load AWS config and create client
