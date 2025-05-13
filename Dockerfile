@@ -1,8 +1,8 @@
-FROM rust:1.86-alpine as build
+FROM rust:1.86 as build
 
 # create a new empty shell project
-RUN USER=root cargo new --bin holodeck
-WORKDIR /app
+RUN USER=root cargo new --bin crimson
+WORKDIR /crimson
 
 # copy over your manifests
 COPY ./Cargo.lock ./Cargo.lock
@@ -22,7 +22,7 @@ RUN cargo build --release
 FROM alpine:latest
 
 # copy the build artifact from the build stage
-COPY --from=build /app/target/release/crimson .
+COPY --from=build /crimson/target/release/crimson .
 
 # set the startup command to run your binary
 CMD ["./crimson"]
