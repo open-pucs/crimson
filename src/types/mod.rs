@@ -118,6 +118,8 @@ pub enum StoreError {
     S3(#[from] aws_sdk_s3::Error),
     #[error("Serialization error: {0}")]
     Serde(#[from] serde_json::Error),
+    #[error("Error in Local File System")]
+    LocalFile,
     #[error("Invalid file location for File")]
     InvalidLocation,
 }
@@ -143,4 +145,3 @@ pub enum DocStatusError {
     #[error("Serialization error: {0}")]
     Serde(#[from] serde_json::Error),
 }
-

@@ -22,7 +22,7 @@ pub struct LocalFileStore {
 
 impl LocalFileStore {
     /// Create a new LocalFileStore with the given base directory.
-    pub async fn new<P: AsRef<Path>>(base_path: P) -> Self {
+    pub fn new<P: AsRef<Path>>(base_path: P) -> Self {
         LocalFileStore {
             base_path: base_path.as_ref().to_path_buf(),
             s3_config: (),
@@ -74,11 +74,11 @@ impl FileStoreImplementation for LocalFileStore {
                 if let Some(parent) = full_path.parent() {
                     fs::create_dir_all(parent)
                         .await
-                        .map_err(|_| StoreError::InvalidLocation)?;
+                        .map_err(|_| StoreError::LocalFile)?;
                 }
                 fs::write(&full_path, &bytes)
                     .await
-                    .map_err(|_| StoreError::InvalidLocation)?;
+                    .map_err(|_| StoreError::LocalFile)?;
                 Ok(rel_path)
             }
         }

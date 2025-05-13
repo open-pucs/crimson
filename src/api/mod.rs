@@ -6,10 +6,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::Read;
-// use utoipa::ToSchema;
-// use utoipa_axum::router::OpenApiRouter;
-// use utoipa_axum::routes;
-// use uuid::Uuid;
+use std::path::PathBuf;
 
 use crate::logic::{get_task_data_from_id, ingest_file_to_queue};
 use crate::types::{DocStatusResponse, FileLocation, TaskID, make_new_docstatus};
@@ -28,9 +25,6 @@ async fn pdf_ingest(mut multipart: Multipart) -> Result<Json<DocStatusResponse>,
             }
         }
     }
-
-    // let task_id = Uuid::new_v4();
-    // TODO: send to processing queue
     Err("Multipart was improperely formatted".into())
 }
 async fn pdf_ingest_s3(
@@ -38,13 +32,19 @@ async fn pdf_ingest_s3(
 ) -> Result<Json<DocStatusResponse>, String> {
     let task_id: TaskID = make_task_id();
     let file_location = FileLocation::S3Uri(ingest_params.s3_uri);
-
     let task_status = make_new_docstatus(task_id, file_location);
     ingest_file_to_queue(task_status.clone()).await;
     Ok(Json(task_status.into()))
+}
 
-    // let task_id = Uuid::new_v4();
-    // TODO: send to processing queue
+async fn pdf_ingest_debug_local_path(
+    Json(ingest_params): Json<DocIngestParamsDebugLocalPath>,
+) -> Result<Json<DocStatusResponse>, String> {
+    let task_id: TaskID = make_task_id();
+    let file_location = FileLocation::LocalPath(ingest_params.local_path);
+    let task_status = make_new_docstatus(task_id, file_location);
+    ingest_file_to_queue(task_status.clone()).await;
+    Ok(Json(task_status.into()))
 }
 async fn pdf_get_status(Path(task_id): Path<TaskID>) -> Json<DocStatusResponse> {
     Json(get_task_data_from_id(task_id).await.unwrap().into())
@@ -57,6 +57,10 @@ pub fn router() -> ApiRouter {
         .api_route("/status/{task_id}", get(pdf_get_status))
         .api_route("/ingest/upload", post(pdf_ingest))
         .api_route("/ingest/s3", post(pdf_ingest_s3))
+        .api_route(
+            "/ingest/debug_local_path",
+            post(pdf_ingest_debug_local_path),
+        )
 }
 
 /// Parameters for ingesting a document.
@@ -94,6 +98,22 @@ pub struct DocIngestParamsS3 {
     pub max_pages: Option<u32>,
 }
 
+#[derive(Deserialize, Serialize, Debug, JsonSchema)]
+pub struct DocIngestParamsDebugLocalPath {
+    /// File to process, sent as binary.
+    // #[schema(format = Binary, content_media_type = "application/octet-stream")]
+    pub local_path: PathBuf,
+    /// Optional comma-separated list of languages for OCR (e.g., "en,fr").
+    pub langs: Option<String>,
+    /// Force OCR on every page.
+    pub force_ocr: Option<bool>,
+    /// Paginate output with page delimiters.
+    pub paginate: Option<bool>,
+    /// Disable image extraction.
+    pub disable_image_extraction: Option<bool>,
+    /// Maximum number of pages to process from the start.
+    pub max_pages: Option<u32>,
+}
 // Logic For document processing.
 
 fn make_task_id() -> TaskID {
