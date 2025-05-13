@@ -28,6 +28,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .nest("/v1/", api::router())
         .nest("/admin/", admin::router());
 
+    // Spawn background worker to process PDF tasks
+    // This worker runs indefinitely
+    tokio::spawn(async move {
+        processing::worker::start_worker().await;
+    });
+
     // bind and serve
     let addr = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 8080);
     println!("Listening on http://{}", addr);

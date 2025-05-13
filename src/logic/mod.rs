@@ -52,8 +52,8 @@ pub async fn ingest_file_to_queue(status: DocStatus) {
 }
 
 /// Update an existing task's processing status.
-pub async fn update_task_data(status: DocStatus) {
-    let _ = LOCAL_STORE.status_store.set_doc_status(status).await;
+pub async fn update_task_data(status: DocStatus) -> Result<(), DocStatusError> {
+    LOCAL_STORE.status_store.set_doc_status(status).await
 }
 
 /// Dequeue the next file processing task, returning its DocStatus.
