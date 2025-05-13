@@ -33,12 +33,37 @@ impl Default for LocalFileStore {
 
 #[derive(Debug, Clone)]
 pub struct S3ConfigParams {
+    endpoint: String,
+    region: String,
+    default_bucket: String,
     access_key: String,
     secret_key: String,
 }
 impl Default for S3ConfigParams {
     fn default() -> Self {
         S3ConfigParams {
+            endpoint: std::env::var("S3_ENDPOINT").unwrap_or_else(|_err| {
+                let default_endpoint = "https://sfo3.digitaloceanspaces.com";
+                println!(
+                    "S3_ENDPOINT not defined, defaulting to {}",
+                    default_endpoint
+                );
+                default_endpoint.into()
+            }),
+            region: std::env::var("S3_REGION").unwrap_or_else(|_err| {
+                let default_region = "sfo3";
+                println!("S3_REGION not defined, defaulting to {}", default_region);
+                default_region.into()
+            }),
+            default_bucket: std::env::var("S3_CRIMSON_BUCKET").unwrap_or_else(|_err| {
+                let default_bucket = "crimsondocs";
+                println!(
+                    "S3_CRIMSON_BUCKET not defined, defaulting to {}",
+                    default_bucket
+                );
+                default_bucket.into()
+            }),
+
             access_key: std::env::var("S3_ACCESS_KEY").expect("S3_ACCESS_KEY Not Set"),
             secret_key: std::env::var("S3_SECRET_KEY").expect("S3_SECRET_KEY Not Set"),
         }
@@ -67,14 +92,11 @@ impl FileStoreImplementation for LocalFileStore {
     async fn download_to_file(&self, src: &FileLocation) -> Result<LocalPath, StoreError> {
         match src {
             FileLocation::LocalPath(rel) => Ok(rel.clone()),
-            FileLocation::S3Uri(s3_uri) => {
+            FileLocation::S3Location(s3_loc) => {
+                let bucket = &s3_loc.bucket;
+                let key = &s3_loc.bucket;
+
                 // Parse S3 URI of form s3://bucket/key
-                let uri = s3_uri
-                    .strip_prefix("s3://")
-                    .ok_or(StoreError::InvalidLocation)?;
-                let mut parts = uri.splitn(2, '/');
-                let bucket = parts.next().unwrap();
-                let key = parts.next().ok_or(StoreError::InvalidLocation)?;
                 // Load AWS config and create client
                 let config = aws_config::load_defaults(BehaviorVersion::latest()).await;
                 let client = Client::new(&config);
@@ -115,7 +137,7 @@ impl FileStoreImplementation for LocalFileStore {
                 let path = self.base_path.join(rel);
                 fs::remove_file(&path)
                     .await
-                    .map_err(|_| StoreError::InvalidLocation)?;
+                    .map_err(|_| StoreError::LocalFile)?;
                 Ok(())
             }
             _ => Err(StoreError::InvalidLocation),

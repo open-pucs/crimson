@@ -3,9 +3,10 @@ mod local_store;
 
 use crate::logic::local_store::{InMemoryStatusStore, InMemoryTaskQueue, LocalFileStore};
 use crate::types::{
-    DocStatus, DocStatusError, StatusStoreImplementation, TaskID, TaskMessage,
+    DocStatus, DocStatusError, StatusStoreImplementation, StoreError, TaskID, TaskMessage,
     TaskQueueImplementation,
 };
+use aws_sdk_s3::config::endpoint;
 use once_cell::sync::Lazy;
 
 /// A composite store bundling file storage, task queue, and status store.

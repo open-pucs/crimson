@@ -31,7 +31,7 @@ async fn pdf_ingest_s3(
     Json(ingest_params): Json<DocIngestParamsS3>,
 ) -> Result<Json<DocStatusResponse>, String> {
     let task_id: TaskID = make_task_id();
-    let file_location = FileLocation::S3Uri(ingest_params.s3_uri);
+    let file_location = FileLocation::S3Location(ingest_params.s3_uri);
     let task_status = make_new_docstatus(task_id, file_location);
     ingest_file_to_queue(task_status.clone()).await;
     Ok(Json(task_status.into()))
