@@ -18,9 +18,8 @@ pub struct LocalStore {
 /// Global static local store instance.
 static LOCAL_STORE: Lazy<LocalStore> = Lazy::new(|| {
     // Base path for file storage, can be configured via environment variable.
-    let base_path = std::env::var("LOCAL_STORE_PATH").unwrap_or_else(|_| String::from("./data"));
     LocalStore {
-        file_store: LocalFileStore::new(base_path),
+        file_store: LocalFileStore::default(),
         task_queue: InMemoryTaskQueue::new(),
         status_store: InMemoryStatusStore::new(),
     }

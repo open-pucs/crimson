@@ -17,15 +17,40 @@ use aws_sdk_s3::Client;
 #[derive(Debug, Clone)]
 pub struct LocalFileStore {
     base_path: PathBuf,
-    s3_config: (),
+    s3_config: S3ConfigParams,
+}
+impl Default for LocalFileStore {
+    fn default() -> Self {
+        let base_path = std::env::var("LOCAL_STORE_PATH")
+            .unwrap_or_else(|_| String::from("./data"))
+            .into();
+        LocalFileStore {
+            base_path,
+            s3_config: S3ConfigParams::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct S3ConfigParams {
+    access_key: String,
+    secret_key: String,
+}
+impl Default for S3ConfigParams {
+    fn default() -> Self {
+        S3ConfigParams {
+            access_key: std::env::var("S3_ACCESS_KEY").expect("S3_ACCESS_KEY Not Set"),
+            secret_key: std::env::var("S3_SECRET_KEY").expect("S3_SECRET_KEY Not Set"),
+        }
+    }
 }
 
 impl LocalFileStore {
     /// Create a new LocalFileStore with the given base directory.
-    pub fn new<P: AsRef<Path>>(base_path: P) -> Self {
+    pub fn new(base_path: PathBuf, s3_config: S3ConfigParams) -> Self {
         LocalFileStore {
-            base_path: base_path.as_ref().to_path_buf(),
-            s3_config: (),
+            base_path,
+            s3_config,
         }
     }
 }
