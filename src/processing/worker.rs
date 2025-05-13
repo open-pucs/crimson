@@ -11,10 +11,10 @@ pub async fn start_worker() {
     loop {
         // Try to get a task from the queue
         match get_file_task_from_queue().await {
-            Some(mut status) => {
-                let result = process_pdf_from_status(status).await
+            Some(status) => {
+                let result = process_pdf_from_status(status).await;
                 if let Err(err) = result {
-                    println!("Encountered error while processing pdf: {}",err)
+                    println!("Encountered error while processing pdf: {}", err)
                 }
             }
             None => {
@@ -50,8 +50,8 @@ async fn process_pdf_from_status(mut status: DocStatus) -> Result<(), String> {
         Err(err) => {
             status.error = Some(err.to_string());
             status.status = ProcessingStage::Errored;
-            update_task_data(status).await;
-            return Err(err.to_string())
+            let _ = update_task_data(status).await;
+            return Err(err.to_string());
         }
     };
 
@@ -60,14 +60,16 @@ async fn process_pdf_from_status(mut status: DocStatus) -> Result<(), String> {
         Ok(markdown) => {
             status.markdown = Some(markdown);
             status.status = ProcessingStage::Completed;
-            update_task_data(status).await;
-            return Ok(())
+            match update_task_data(status).await {
+                Ok(_) => Ok(()),
+                Err(err) => Err(err.to_string()),
+            }
         }
         Err(err) => {
             status.error = Some(err.clone());
             status.status = ProcessingStage::Errored;
-            update_task_data(status).await;
-            return Err(err)
+            let _ = update_task_data(status).await;
+            Err(err)
         }
     }
 }
