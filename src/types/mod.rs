@@ -22,14 +22,24 @@ pub enum ProcessingStage {
     Errored,
     Processing,
 }
+impl ProcessingStage {
+    fn is_successful(&self) -> bool {
+        self == &ProcessingStage::Completed
+    }
+    fn is_finished(&self) -> bool {
+        self == &ProcessingStage::Completed || self == &ProcessingStage::Errored
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
 pub struct DocStatusResponse {
     request_id: TaskID,
     request_check_url: String,
+    request_check_leaf: String,
     markdown: Option<String>,
     status: ProcessingStage,
     success: bool,
+    completed: bool,
     images: Option<HashMap<String, String>>,
     metadata: Option<HashMap<String, String>>,
     error: Option<String>,
@@ -41,7 +51,10 @@ lazy_static! {
 }
 
 fn make_request_url(id: TaskID) -> String {
-    format!("{}/v1/status/{}", &*DOMAIN, id)
+    (DOMAIN).to_string() + &make_request_leaf(id)
+}
+fn make_request_leaf(id: TaskID) -> String {
+    format!("/v1/status/{}", id)
 }
 
 #[derive(Debug, Clone)]
@@ -61,9 +74,11 @@ impl From<DocStatus> for DocStatusResponse {
         DocStatusResponse {
             request_id: input.request_id,
             request_check_url: make_request_url(input.request_id),
+            request_check_leaf: make_request_leaf(input.request_id),
             markdown: input.markdown,
             status: input.status,
-            success: input.status == ProcessingStage::Completed,
+            success: input.status.is_successful(),
+            completed: input.status.is_finished(),
             images: input.images,
             metadata: input.metadata,
             error: input.error,
