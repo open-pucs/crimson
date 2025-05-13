@@ -1080,6 +1080,7 @@ dependencies = [
  "axum",
  "bytes",
  "markdownify",
+ "once_cell",
  "pdfium-render",
  "rand 0.9.1",
  "redis",

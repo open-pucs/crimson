@@ -39,14 +39,14 @@ fn make_request_url(id: TaskID) -> String {
 
 #[derive(Debug, Clone)]
 pub struct DocStatus {
-    file_location: FileLocation,
+    pub file_location: FileLocation,
     pub request_id: TaskID,
     // queue_id: u64,
-    markdown: Option<String>,
-    status: ProcessingStage,
-    images: Option<HashMap<String, String>>,
-    metadata: Option<HashMap<String, String>>,
-    error: Option<String>,
+    pub markdown: Option<String>,
+    pub status: ProcessingStage,
+    pub images: Option<HashMap<String, String>>,
+    pub metadata: Option<HashMap<String, String>>,
+    pub error: Option<String>,
 }
 
 impl From<DocStatus> for DocStatusResponse {
@@ -84,6 +84,7 @@ pub struct TaskMessage {
 }
 
 /// Abstract file storage (upload/download/delete).
+#[async_trait]
 pub trait FileStoreImplementation {
     async fn upload(&self, data: &[u8], dest: &FileLocation) -> Result<(), StoreError>;
     async fn download(&self, src: &FileLocation) -> Result<Vec<u8>, StoreError>;
@@ -134,4 +135,3 @@ pub enum DocStatusError {
     #[error("Serialization error: {0}")]
     Serde(#[from] serde_json::Error),
 }
-
