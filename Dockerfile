@@ -1,30 +1,20 @@
-FROM rust:1.86 as build
+FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
+WORKDIR /app
 
-# create a new empty shell project
-RUN USER=root cargo new --bin crimson
-WORKDIR /crimson
+FROM chef AS planner
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
 
-# copy over your manifests
-COPY ./Cargo.lock ./Cargo.lock
-COPY ./Cargo.toml ./Cargo.toml
+FROM chef AS builder 
+COPY --from=planner /app/recipe.json recipe.json
+# Build dependencies - this is the caching Docker layer!
+RUN cargo chef cook --release --recipe-path recipe.json
+# Build application
+COPY . .
+RUN cargo build --release --bin crimson
 
-# this build step will cache your dependencies
-RUN cargo build --release
-RUN rm src/*.rs
-
-# copy your source tree
-COPY ./src ./src
-
-# build for release
-RUN cargo build --release
-
-# our final base
-FROM alpine:latest
-
-# copy the build artifact from the build stage
-COPY --from=build /crimson/target/release/crimson .
-
-# set the startup command to run your binary
-CMD ["./crimson"]
-
-
+# We do not need the Rust toolchain to run the binary!
+FROM debian:bookworm-slim AS runtime
+WORKDIR /app
+COPY --from=builder /app/target/release/crimson /usr/local/bin
+ENTRYPOINT ["/usr/local/bin/crimson"]
