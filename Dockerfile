@@ -1,20 +1,27 @@
-FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
+FROM rust:1.86 AS base
+RUN cargo install sccache --version ^0.7
+RUN cargo install cargo-chef --version ^0.1
+ENV RUSTC_WRAPPER=sccache SCCACHE_DIR=/sccache
+
+FROM base AS planner
 WORKDIR /app
-
-FROM chef AS planner
 COPY . .
-RUN cargo chef prepare --recipe-path recipe.json
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+  --mount=type=cache,target=$SCCACHE_DIR,sharing=locked \
+  cargo chef prepare --recipe-path recipe.json
 
-FROM chef AS builder 
+FROM base as builder
+WORKDIR /app
 COPY --from=planner /app/recipe.json recipe.json
-# Build dependencies - this is the caching Docker layer!
-RUN cargo chef cook --release --recipe-path recipe.json
-# Build application
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+  --mount=type=cache,target=$SCCACHE_DIR,sharing=locked \
+  cargo chef cook --release --recipe-path recipe.json
 COPY . .
-RUN cargo build --release --bin crimson
-
-# We do not need the Rust toolchain to run the binary!
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+  --mount=type=cache,target=$SCCACHE_DIR,sharing=locked \
+  cargo build --release
 FROM debian:bookworm-slim AS runtime
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=builder /app/target/release/crimson /usr/local/bin
 ENTRYPOINT ["/usr/local/bin/crimson"]
