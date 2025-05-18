@@ -41,33 +41,36 @@ pub struct S3ConfigParams {
     pub access_key: String,
     pub secret_key: String,
 }
+
 impl Default for S3ConfigParams {
     fn default() -> Self {
+        let bucket_env = "S3_CRIMSON_BUCKET";
+        let endpoint_env = "S3_ENDPOINT";
+        let region_env = "S3_REGION";
+        let default_bucket = "crimsondocs";
+        let default_endpoint = "https://sfo3.digitaloceanspaces.com";
+        let default_region = "sfo3";
+
+        let access_env = "S3_ACCESS_KEY";
+        let secret_env = "S3_SECRET_KEY";
         S3ConfigParams {
-            endpoint: std::env::var("S3_ENDPOINT").unwrap_or_else(|_err| {
-                let default_endpoint = "https://sfo3.digitaloceanspaces.com";
-                println!(
-                    "S3_ENDPOINT not defined, defaulting to {}",
-                    default_endpoint
-                );
+            endpoint: std::env::var(endpoint_env).unwrap_or_else(|_err| {
+                println!("{endpoint_env} not defined, defaulting to {default_endpoint}");
                 default_endpoint.into()
             }),
-            region: std::env::var("S3_REGION").unwrap_or_else(|_err| {
-                let default_region = "sfo3";
-                println!("S3_REGION not defined, defaulting to {}", default_region);
+            region: std::env::var(region_env).unwrap_or_else(|_err| {
+                println!("{region_env} not defined, defaulting to {default_region}");
                 default_region.into()
             }),
-            default_bucket: std::env::var("S3_CRIMSON_BUCKET").unwrap_or_else(|_err| {
-                let default_bucket = "crimsondocs";
-                println!(
-                    "S3_CRIMSON_BUCKET not defined, defaulting to {}",
-                    default_bucket
-                );
+            default_bucket: std::env::var(bucket_env).unwrap_or_else(|_err| {
+                println!("{endpoint_env} not defined, defaulting to {default_endpoint}");
                 default_bucket.into()
             }),
 
-            access_key: std::env::var("S3_ACCESS_KEY").expect("S3_ACCESS_KEY Not Set"),
-            secret_key: std::env::var("S3_SECRET_KEY").expect("S3_SECRET_KEY Not Set"),
+            access_key: std::env::var(access_env)
+                .unwrap_or_else(|_| panic!("{access_env} Not Set")),
+            secret_key: std::env::var(secret_env)
+                .unwrap_or_else(|_| panic!("{secret_env} Not Set")),
         }
     }
 }
