@@ -14,6 +14,7 @@ use aws_config::{self, BehaviorVersion, SdkConfig};
 use aws_sdk_s3::Client;
 
 use super::s3_stuff::make_s3_client;
+use tracing::warn;
 
 /// Local filesystem-based implementation of FileStore.
 #[derive(Debug, Clone)]

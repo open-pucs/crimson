@@ -6,6 +6,8 @@ use aide::{
 use axum::{Extension, Json};
 
 use std::net::{Ipv4Addr, SocketAddr};
+use tracing::info;
+use tracing_subscriber;
 
 mod api;
 mod logic;
@@ -20,6 +22,8 @@ async fn serve_api(Extension(api): Extension<OpenApi>) -> impl IntoApiResponse {
 }
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Initialize tracing subscriber for structured logging
+    tracing_subscriber::fmt::init();
     // Build our application with routes
     let app = ApiRouter::new()
         .api_route("/v1/health", get(health))
@@ -36,7 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // bind and serve
     let addr = SocketAddr::new(Ipv4Addr::new(0, 0, 0, 0).into(), 8080);
-    println!("Listening on http://{}", addr);
+    info!("Listening on http://{}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     let mut api = OpenApi {
         info: Info {
