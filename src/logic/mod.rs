@@ -4,10 +4,9 @@ mod s3_stuff;
 
 use crate::logic::local_store::{InMemoryStatusStore, InMemoryTaskQueue, LocalFileStore};
 use crate::types::{
-    DocStatus, DocStatusError, StatusStoreImplementation, StoreError, TaskID, TaskMessage,
+    DocStatus, DocStatusError, StatusStoreImplementation, TaskID, TaskMessage,
     TaskQueueImplementation,
 };
-use aws_sdk_s3::config::endpoint;
 use once_cell::sync::Lazy;
 
 /// A composite store bundling file storage, task queue, and status store.
@@ -69,7 +68,7 @@ pub async fn get_file_task_from_queue() -> Option<DocStatus> {
                 .unwrap_or_else(|err| {
                     panic!(
                         "DocStatus not found for dequeued TaskMessage, this shouldnt be possible: {}",
-                        err.to_string()
+                        err
                     )
                 }),
         );
