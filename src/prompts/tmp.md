@@ -1,1 +1,5 @@
-Could you take all instances of the println! macro in this rust project and replace them with structured logs from the tracing crate?
+There is some documentation for how to make tracing ingest to OTEL successfully in :
+/home/nicole/Documents/mycorrhizae/crimson/src/prompts/references/otel_tracing_docs.md
+
+Could you look at these docs and figure out how to make the tracing/logging code in here successfully ingest to an otel endpoint?
+

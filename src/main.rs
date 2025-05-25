@@ -72,6 +72,7 @@ mod admin {
     use axum::Json;
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
+    use tracing::info;
 
     #[derive(Serialize, Deserialize, JsonSchema)]
     struct ServerInfo {
@@ -86,6 +87,7 @@ mod admin {
 
     /// Get static server info
     async fn get_server_info() -> impl IntoApiResponse {
+        info!("Someone tried to get server info");
         Json(ServerInfo {
             name: "Crimson".into(),
             version: "0.0".into(),
