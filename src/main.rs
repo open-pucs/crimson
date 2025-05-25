@@ -6,8 +6,6 @@ use aide::{
 use axum::{Extension, Json};
 
 use std::net::{Ipv4Addr, SocketAddr};
-use tracing::info;
-use tracing_subscriber;
 
 mod api;
 mod logic;

@@ -23,4 +23,3 @@ pub fn cheaply_process_pdf_path(path: &Path) -> Result<String, Box<dyn std::erro
 
     pdf::pdf_convert(path)
 }
-

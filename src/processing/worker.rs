@@ -4,8 +4,8 @@ use tokio::time::sleep;
 
 use crate::logic::{get_file_task_from_queue, get_local_store, update_task_data};
 use crate::processing::cheaply_process_pdf_path;
-use tracing::{info, error, warn};
 use crate::types::{DocStatus, FileStoreImplementation, ProcessingStage};
+use tracing::{error, info, warn};
 
 /// Start the worker that continuously processes PDF tasks from the queue.
 pub async fn start_worker() {
@@ -47,7 +47,10 @@ async fn process_pdf_from_status(mut status: DocStatus) -> Result<(), String> {
     let markdown_res = match download_result {
         Ok(local_path) => {
             // Process PDF to markdown
-            info!("Downloaded result successfully, processing pdf at: {}", &local_path.to_string_lossy());
+            info!(
+                "Downloaded result successfully, processing pdf at: {}",
+                &local_path.to_string_lossy()
+            );
             cheaply_process_pdf_path(&local_path)
         }
         Err(err) => {

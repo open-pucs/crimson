@@ -10,8 +10,7 @@ use crate::types::{
     DocStatus, DocStatusError, FileLocation, FileStoreImplementation, LocalPath, QueueError,
     StatusStoreImplementation, StoreError, TaskID, TaskMessage, TaskQueueImplementation,
 };
-use aws_config::{self, BehaviorVersion, SdkConfig};
-use aws_sdk_s3::Client;
+use aws_config::{self};
 
 use super::s3_stuff::make_s3_client;
 use tracing::warn;
