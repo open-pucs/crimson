@@ -11,6 +11,10 @@ tokio = { version = "1.45.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 bytes = "1.4"
 tracing = "0.1"
+tracing-opentelemetry = "0.18"
+opentelemetry = "0.18"
+opentelemetry-sdk = { version = "0.18", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.8", features = ["grpc-tonic"] }
 tracing-subscriber = "0.3"
 markdownify = "0.1.5"
 aide = { version = "0.14.2", features = ["axum", "axum-json", "axum-matched-path", "axum-multipart", "axum-query", "swagger"] }

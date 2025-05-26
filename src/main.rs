@@ -7,6 +7,15 @@ use axum::{Extension, Json};
 
 use std::net::{Ipv4Addr, SocketAddr};
 
+use tracing::info;
+use tracing_subscriber::{EnvFilter, fmt, Registry};
+use tracing_subscriber::layer::SubscriberExt;
+
+use opentelemetry::global;
+use opentelemetry_sdk::trace::SdkTracerProvider;
+use opentelemetry_otlp::SpanExporter;
+use tracing_opentelemetry::layer;
+
 mod api;
 mod logic;
 mod processing;
@@ -18,10 +27,33 @@ mod types;
 async fn serve_api(Extension(api): Extension<OpenApi>) -> impl IntoApiResponse {
     Json(api)
 }
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize tracing subscriber for structured logging
-    tracing_subscriber::fmt::init();
+    // Initialize OpenTelemetry tracing and logging
+    // Export spans to OTLP endpoint via gRPC
+    let otel_endpoint = std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT")
+        .expect("OTEL_EXPORTER_OTLP_ENDPOINT must be set");
+    let otlp_exporter = SpanExporter::builder()
+        .with_tonic()
+        .with_endpoint(otel_endpoint)
+        .build()
+        .expect("Failed to create OTLP exporter");
+    let tracer_provider = SdkTracerProvider::builder()
+        .with_simple_exporter(otlp_exporter)
+        .build();
+    global::set_tracer_provider(tracer_provider);
+    let tracer = global::tracer("crimson");
+    // Create a tracing layer with the configured tracer
+    let otel_layer = layer().with_tracer(tracer);
+    // Initialize logging and telemetry subscriber
+    let subscriber = Registry::default()
+        .with(EnvFilter::from_default_env())
+        .with(otel_layer)
+        .with(fmt::Layer::default());
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("Failed to set global subscriber");
+
     // Build our application with routes
     let app = ApiRouter::new()
         .api_route("/v1/health", get(health))
