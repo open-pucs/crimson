@@ -88,9 +88,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     )
                 })
                 .on_request(|_request: &Request<_>, _span: &Span| {
+                    info!("This is a test thing")
                     // Record additional fields or baggage here if needed
                 })
                 .on_response(|_response: &Response, _latency: Duration, _span: &Span| {
+                    info!("This is a test response")
                     // You can log metrics or record things here
                 })
                 .on_body_chunk(|_chunk: &Bytes, _latency: Duration, _span: &Span| {
