@@ -1,4 +1,5 @@
 use aide::{
+    IntoApi,
     axum::{ApiRouter, IntoApiResponse, routing::get},
     openapi::{Info, OpenApi},
     swagger::Swagger,
@@ -9,12 +10,14 @@ use std::net::{Ipv4Addr, SocketAddr};
 
 use tracing::info;
 use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::{EnvFilter, Registry, fmt};
+use tracing_subscriber::{Registry, fmt};
 
-use opentelemetry::global;
-use opentelemetry_otlp::SpanExporter;
+use opentelemetry::global::{self, BoxedTracer, ObjectSafeTracerProvider, tracer};
+use opentelemetry_otlp::{SpanExporter, WithExportConfig};
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use tracing_opentelemetry::layer;
+
+use opentelemetry::trace::TracerProvider;
 
 mod api;
 mod logic;
@@ -39,21 +42,51 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_endpoint(otel_endpoint)
         .build()
         .expect("Failed to create OTLP exporter");
-    let tracer_provider = SdkTracerProvider::builder()
+    let otel_provider = SdkTracerProvider::builder()
         .with_simple_exporter(otlp_exporter)
         .build();
-    global::set_tracer_provider(tracer_provider);
-    let tracer = global::tracer("crimson");
-    // Create a tracing layer with the configured tracer
-    let otel_layer = layer().with_tracer(tracer);
-    // Initialize logging and telemetry subscriber
-    let subscriber = Registry::default()
-        .with(EnvFilter::from_default_env())
-        .with(otel_layer)
-        .with(fmt::Layer::default());
-    tracing::subscriber::set_global_default(subscriber).expect("Failed to set global subscriber");
+    // Create a new OpenTelemetry trace pipeline that prints to stdout
+    let stdout_provider: SdkTracerProvider = SdkTracerProvider::builder()
+        .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
+        .build();
+    // global::set_tracer_provider(otel_provider);
+    // global::set_tracer_provider(stdout_provider);
+    // let stdout_tracer :Tracer= stdout_provider.boxed_tracer(scope)
+    let boxed_tracer = stdout_provider.tracer("crimson");
+    // This line is giving this error:
+    //
+    // 1. no method named `tracer` found for struct `opentelemetry_sdk::trace::SdkTracerProvider` in the current scope
+    //    items from traits can only be used if the trait is in scope [E0599]
+    // I dont get why it isnt seeing this trait implementation in the code:
+    //
+    // impl opentelemetry::trace::TracerProvider for SdkTracerProvider {
+    //     /// This implementation of `TracerProvider` produces `Tracer` instances.
+    //     type Tracer = SdkTracer;
+    //
+    //     fn tracer(&self, name: impl Into<Cow<'static, str>>) -> Self::Tracer {
+    //         let scope = InstrumentationScope::builder(name).build();
+    //         self.tracer_with_scope(scope)
+    //     }
+    //
+    //     fn tracer_with_scope(&self, scope: InstrumentationScope) -> Self::Tracer {
+    //         if self.inner.is_shutdown.load(Ordering::Relaxed) {
+    //             return SdkTracer::new(scope, noop_tracer_provider().clone());
+    //         }
+    //         if scope.name().is_empty() {
+    //             otel_info!(name: "TracerNameEmpty",  message = "Tracer name is empty; consider providing a meaningful name. Tracer will function normally and the provided name will be used as-is.");
+    //         };
+    //         SdkTracer::new(scope, self.clone())
+    //     }
+    // }
 
+    // Create a tracing layer with the configured tracer
+    let telemetry = tracing_opentelemetry::layer().with_tracer(boxed_tracer);
+
+    // Use the tracing subscriber `Registry`, or any other subscriber
+    // that impls `LookupSpan`
+    let subscriber = Registry::default().with(telemetry);
     // Build our application with routes
+    // tracing::subscriber::with_default(subscriber, async || {
     let app = ApiRouter::new()
         .api_route("/v1/health", get(health))
         .route("/api.json", get(serve_api))
@@ -89,6 +122,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     )
     .await
     .unwrap();
+    // });
 
     Ok(())
 }
