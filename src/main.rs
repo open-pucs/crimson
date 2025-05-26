@@ -18,38 +18,10 @@ mod types;
 async fn serve_api(Extension(api): Extension<OpenApi>) -> impl IntoApiResponse {
     Json(api)
 }
-
-// OpenTelemetry and tracing imports
-use opentelemetry::sdk::trace::TraceConfig;
-use opentelemetry::sdk::Resource;
-use opentelemetry::KeyValue as OTelKeyValue;
-use opentelemetry_otlp::new_pipeline;
-use opentelemetry::runtime::Tokio;
-use tracing_subscriber::{fmt, EnvFilter, layer::SubscriberExt, Registry};
-use tracing_opentelemetry::layer;
-use tracing::info;
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize OpenTelemetry OTLP pipeline and tracing subscriber
-    let otel_exporter = new_pipeline()
-        .with_endpoint(std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT").unwrap_or_default())
-        .with_trace_config(
-            TraceConfig::default().with_resource(Resource::new(vec![
-                OTelKeyValue::new("service.name", "crimson-app"),
-            ])),
-        )
-        .install_batch(Tokio)?;
-    let tracer = otel_exporter.tracer("crimson_tracer", Some(env!("CARGO_PKG_VERSION")));
-    let otel_layer = layer().with_tracer(tracer);
-    let fmt_layer = fmt::layer();
-    let filter_layer = EnvFilter::from_default_env();
-    let subscriber = Registry::default()
-        .with(filter_layer)
-        .with(fmt_layer)
-        .with(otel_layer);
-    tracing::subscriber::set_global_default(subscriber)?;
-
+    // Initialize tracing subscriber for structured logging
+    tracing_subscriber::fmt::init();
     // Build our application with routes
     let app = ApiRouter::new()
         .api_route("/v1/health", get(health))
@@ -86,9 +58,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     )
     .await
     .unwrap();
-
-    // Ensure all spans are exported before shutdown
-    opentelemetry::global::shutdown_tracer_provider();
 
     Ok(())
 }
