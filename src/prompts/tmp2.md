@@ -95,3 +95,5 @@ Could you go ahead and implement this tracing example in
 
 using all the existing tracers already implemented.
 
+
+Before you finish your task run ` RUSTFLAGS="-A warnings" cargo check --message-format=short` (Some optimisations to weed out a bunch of unneded tokens) to make sure you havent made any mistakes. Also try to avoid modifying any code that isnt absolutely essential to implement your feature.

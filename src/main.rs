@@ -24,6 +24,18 @@ mod logic;
 mod processing;
 mod types;
 
+use axum::{
+    Router,
+    body::Bytes,
+    extract::MatchedPath,
+    http::{HeaderMap, Request},
+    response::{Html, Response},
+};
+use std::time::Duration;
+use tokio::net::TcpListener;
+use tower_http::{classify::ServerErrorsFailureClass, trace::TraceLayer};
+use tracing::{Span, info_span};
+use tracing_subscriber::util::SubscriberInitExt;
 // Note that this clones the document on each request.
 // To be more efficient, we could wrap it into an Arc,
 // or even store it as a serialized string.
@@ -60,6 +72,41 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Build our application with routes
     // tracing::subscriber::with_default(subscriber, async || {
     let app = ApiRouter::new()
+        // Add HTTP tracing layer
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(|request: &Request<_>| {
+                    // Log the matched route's path (with placeholders)
+                    let matched_path = request
+                        .extensions()
+                        .get::<MatchedPath>()
+                        .map(MatchedPath::as_str);
+                    info_span!("http_request",
+                        method = ?request.method(),
+                        matched_path,
+                        some_other_field = tracing::field::Empty,
+                    )
+                })
+                .on_request(|_request: &Request<_>, _span: &Span| {
+                    // Record additional fields or baggage here if needed
+                })
+                .on_response(|_response: &Response, _latency: Duration, _span: &Span| {
+                    // You can log metrics or record things here
+                })
+                .on_body_chunk(|_chunk: &Bytes, _latency: Duration, _span: &Span| {
+                    // Called when a chunk of the response body is written
+                })
+                .on_eos(
+                    |_trailers: Option<&HeaderMap>, _stream_duration: Duration, _span: &Span| {
+                        // End of stream
+                    },
+                )
+                .on_failure(
+                    |_error: ServerErrorsFailureClass, _latency: Duration, _span: &Span| {
+                        // Called when a request fails
+                    },
+                ),
+        )
         .api_route("/v1/health", get(health))
         .route("/api.json", get(serve_api))
         .route("/swagger", Swagger::new("/api.json").axum_route())
@@ -131,3 +178,4 @@ mod admin {
         })
     }
 }
+
