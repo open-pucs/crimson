@@ -8,12 +8,12 @@ use axum::{Extension, Json};
 use std::net::{Ipv4Addr, SocketAddr};
 
 use tracing::info;
-use tracing_subscriber::{EnvFilter, fmt, Registry};
 use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::{EnvFilter, Registry, fmt};
 
 use opentelemetry::global;
-use opentelemetry_sdk::trace::SdkTracerProvider;
 use opentelemetry_otlp::SpanExporter;
+use opentelemetry_sdk::trace::SdkTracerProvider;
 use tracing_opentelemetry::layer;
 
 mod api;
@@ -51,8 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with(EnvFilter::from_default_env())
         .with(otel_layer)
         .with(fmt::Layer::default());
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("Failed to set global subscriber");
+    tracing::subscriber::set_global_default(subscriber).expect("Failed to set global subscriber");
 
     // Build our application with routes
     let app = ApiRouter::new()
