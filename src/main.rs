@@ -5,10 +5,7 @@ use aide::{
     swagger::Swagger,
 };
 use axum::{Extension, Json};
-use axum_tracing_opentelemetry::{
-    middleware::{OtelAxumLayer, OtelInResponseLayer},
-    opentelemetry_tracing_layer,
-};
+use axum_tracing_opentelemetry::{middleware::OtelAxumLayer, opentelemetry_tracing_layer};
 
 use std::net::{Ipv4Addr, SocketAddr};
 
@@ -97,9 +94,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // initialise our subscriber
     let app = ApiRouter::new()
         // Add HTTP tracing layer
-        // include trace context as header into the response
-        .layer(OtelInResponseLayer::default())
-        //start OpenTelemetry trace on incoming request
         .layer(OtelAxumLayer::default())
         .api_route("/v1/health", get(health))
         .route("/api.json", get(serve_api))
