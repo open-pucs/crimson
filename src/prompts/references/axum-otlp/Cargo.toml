@@ -1,0 +1,26 @@
+[package]
+name = "examples-axum-otlp"
+publish = false
+edition.workspace = true
+version.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[dependencies]
+axum = { workspace = true, default-features = true }
+axum-tracing-opentelemetry = { path = "../../axum-tracing-opentelemetry" }
+init-tracing-opentelemetry = { path = "../../init-tracing-opentelemetry", features = [
+  "otlp",
+  "tracing_subscriber_ext",
+] }
+opentelemetry = { workspace = true }
+opentelemetry-otlp = { workspace = true, default-features = false, features = [
+  "reqwest-rustls",
+  "http-proto",
+  "tls",
+] }
+serde_json = "1"
+tokio = { workspace = true, features = ["full"] }
+tracing = { workspace = true }
+tracing-opentelemetry-instrumentation-sdk = { path = "../../tracing-opentelemetry-instrumentation-sdk" }
