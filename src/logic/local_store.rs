@@ -55,15 +55,15 @@ impl Default for S3ConfigParams {
         let secret_env = "S3_SECRET_KEY";
         S3ConfigParams {
             endpoint: std::env::var(endpoint_env).unwrap_or_else(|_err| {
-                println!("{endpoint_env} not defined, defaulting to {default_endpoint}");
+                warn!("{endpoint_env} not defined, defaulting to {default_endpoint}");
                 default_endpoint.into()
             }),
             region: std::env::var(region_env).unwrap_or_else(|_err| {
-                println!("{region_env} not defined, defaulting to {default_region}");
+                warn!("{region_env} not defined, defaulting to {default_region}");
                 default_region.into()
             }),
             default_bucket: std::env::var(bucket_env).unwrap_or_else(|_err| {
-                println!("{endpoint_env} not defined, defaulting to {default_endpoint}");
+                warn!("{endpoint_env} not defined, defaulting to {default_endpoint}");
                 default_bucket.into()
             }),
 

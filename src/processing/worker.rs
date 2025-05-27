@@ -69,7 +69,7 @@ async fn process_pdf_from_status(mut status: DocStatus) -> Result<(), String> {
         Ok(markdown) => {
             status.markdown = Some(markdown);
             status.status = ProcessingStage::Completed;
-            println!("Successfully processed pdf");
+            info!("Successfully processed pdf");
             match update_task_data(status).await {
                 Ok(_) => Ok(()),
                 Err(err) => {
