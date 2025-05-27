@@ -52,46 +52,48 @@ async fn serve_api(Extension(api): Extension<OpenApi>) -> impl IntoApiResponse {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize OpenTelemetry tracing and logging
-    // Export spans to OTLP endpoint via gRPC
-    println!("Started Program");
-    let otel_endpoint = std::env::var(OTEL_EXPORTER_OTLP_ENDPOINT)
-        .expect("OTEL_EXPORTER_OTLP_ENDPOINT must be set");
-    // Manually setting it to grpc for now.
-    let otel_protocol = Protocol::Grpc;
-    println!("Exporting on:{}", &otel_endpoint);
-    let otlp_exporter = SpanExporter::builder()
-        .with_tonic()
-        .with_endpoint(otel_endpoint)
-        .with_protocol(otel_protocol)
-        .build()
-        .expect("Failed to create OTLP exporter");
-    println!("Created otel exporter");
-    let otel_provider = SdkTracerProvider::builder()
-        .with_simple_exporter(otlp_exporter)
-        .build();
-    // Create a new OpenTelemetry trace pipeline that prints to stdout
-    let stdout_provider: SdkTracerProvider = SdkTracerProvider::builder()
-        .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
-        .build();
-    println!("Created otel provider");
-    let otel_tracer = otel_provider.tracer("crimson");
-    let stdout_tracer = stdout_provider.tracer("crimson");
-    println!("Created Tracer");
-    // Create a tracing layer with the configured tracer
+    // // Initialize OpenTelemetry tracing and logging
+    // // Export spans to OTLP endpoint via gRPC
+    // println!("Started Program");
+    // let otel_endpoint = std::env::var(OTEL_EXPORTER_OTLP_ENDPOINT)
+    //     .expect("OTEL_EXPORTER_OTLP_ENDPOINT must be set");
+    // // Manually setting it to grpc for now.
+    // let otel_protocol = Protocol::Grpc;
+    // println!("Exporting on:{}", &otel_endpoint);
+    // let otlp_exporter = SpanExporter::builder()
+    //     .with_tonic()
+    //     .with_endpoint(otel_endpoint)
+    //     .with_protocol(otel_protocol)
+    //     .build()
+    //     .expect("Failed to create OTLP exporter");
+    // println!("Created otel exporter");
+    // let otel_provider = SdkTracerProvider::builder()
+    //     .with_simple_exporter(otlp_exporter)
+    //     .build();
+    // // Create a new OpenTelemetry trace pipeline that prints to stdout
+    // let stdout_provider: SdkTracerProvider = SdkTracerProvider::builder()
+    //     .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
+    //     .build();
+    // println!("Created otel provider");
+    // let otel_tracer = otel_provider.tracer("crimson");
+    // let stdout_tracer = stdout_provider.tracer("crimson");
+    // println!("Created Tracer");
+    // // Create a tracing layer with the configured tracer
+    //
+    // // Use the tracing subscriber `Registry`, or any other subscriber
+    // // that impls `LookupSpan`
+    // let _otel_subscriber = Registry::default()
+    //     .with(tracing_opentelemetry::layer().with_tracer(otel_tracer))
+    //     .with(tracing_subscriber::fmt::layer());
+    //
+    // let _stdout_subscriber = Registry::default()
+    //     .with(tracing_opentelemetry::layer().with_tracer(stdout_tracer))
+    //     .with(tracing_subscriber::fmt::layer());
+    //
+    // tracing::subscriber::set_global_default(_otel_subscriber)
+    //     .expect("Failed to set tracing subscriber");
 
-    // Use the tracing subscriber `Registry`, or any other subscriber
-    // that impls `LookupSpan`
-    let _otel_subscriber = Registry::default()
-        .with(tracing_opentelemetry::layer().with_tracer(otel_tracer))
-        .with(tracing_subscriber::fmt::layer());
-
-    let _stdout_subscriber = Registry::default()
-        .with(tracing_opentelemetry::layer().with_tracer(stdout_tracer))
-        .with(tracing_subscriber::fmt::layer());
-
-    tracing::subscriber::set_global_default(_otel_subscriber)
-        .expect("Failed to set tracing subscriber");
+    let _guard = init_tracing_opentelemetry::tracing_subscriber_ext::init_subscribers()?;
 
     info!("Tracing Subscriber is up and running, trying to create app");
     // initialise our subscriber
