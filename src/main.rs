@@ -5,6 +5,7 @@ use aide::{
     swagger::Swagger,
 };
 use axum::{Extension, Json};
+use axum_tracing_opentelemetry::{middleware::OtelAxumLayer, opentelemetry_tracing_layer};
 
 use std::net::{Ipv4Addr, SocketAddr};
 
@@ -12,7 +13,7 @@ use tracing::info;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::{Registry, fmt};
 
-use opentelemetry::global::{self, BoxedTracer, ObjectSafeTracerProvider, tracer};
+// use opentelemetry::global::{self, BoxedTracer, ObjectSafeTracerProvider, tracer};
 use opentelemetry_otlp::{SpanExporter, WithExportConfig};
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use tracing_opentelemetry::layer;
@@ -61,54 +62,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let stdout_provider: SdkTracerProvider = SdkTracerProvider::builder()
         .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
         .build();
-    let tracer = stdout_provider.tracer("crimson");
+    let tracer = otel_provider.tracer("crimson");
 
     // Create a tracing layer with the configured tracer
     let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
 
     // Use the tracing subscriber `Registry`, or any other subscriber
     // that impls `LookupSpan`
-    let subscriber = Registry::default().with(telemetry);
-    // Build our application with routes
-    // tracing::subscriber::with_default(subscriber, async || {
+    let subscriber = Registry::default()
+        .with(telemetry)
+        .with(tracing_subscriber::fmt::layer());
+
+    tracing::subscriber::set_global_default(subscriber).expect("Failed to set tracing subscriber");
+
+    // initialise our subscriber
     let app = ApiRouter::new()
         // Add HTTP tracing layer
-        .layer(
-            TraceLayer::new_for_http()
-                .make_span_with(|request: &Request<_>| {
-                    // Log the matched route's path (with placeholders)
-                    let matched_path = request
-                        .extensions()
-                        .get::<MatchedPath>()
-                        .map(MatchedPath::as_str);
-                    info_span!("http_request",
-                        method = ?request.method(),
-                        matched_path,
-                        some_other_field = tracing::field::Empty,
-                    )
-                })
-                .on_request(|_request: &Request<_>, _span: &Span| {
-                    info!("This is a test thing")
-                    // Record additional fields or baggage here if needed
-                })
-                .on_response(|_response: &Response, _latency: Duration, _span: &Span| {
-                    info!("This is a test response")
-                    // You can log metrics or record things here
-                })
-                .on_body_chunk(|_chunk: &Bytes, _latency: Duration, _span: &Span| {
-                    // Called when a chunk of the response body is written
-                })
-                .on_eos(
-                    |_trailers: Option<&HeaderMap>, _stream_duration: Duration, _span: &Span| {
-                        // End of stream
-                    },
-                )
-                .on_failure(
-                    |_error: ServerErrorsFailureClass, _latency: Duration, _span: &Span| {
-                        // Called when a request fails
-                    },
-                ),
-        )
+        .layer(OtelAxumLayer::default())
         .api_route("/v1/health", get(health))
         .route("/api.json", get(serve_api))
         .route("/swagger", Swagger::new("/api.json").axum_route())
@@ -180,4 +150,3 @@ mod admin {
         })
     }
 }
-
