@@ -32,3 +32,4 @@ lazy_static = "1.5.0"
 tower-http = { version = "0.6.4", features = ["trace"] }
 axum-tracing-opentelemetry = "0.28.0"
 init-tracing-opentelemetry = { version = "0.28.1", features = ["tracing_subscriber_ext"] }
+anyhow = "1.0.98"

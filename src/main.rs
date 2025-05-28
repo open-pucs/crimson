@@ -1,48 +1,23 @@
 use aide::{
-    IntoApi,
     axum::{ApiRouter, IntoApiResponse, routing::get},
     openapi::{Info, OpenApi},
     swagger::Swagger,
 };
 use axum::{Extension, Json};
-use axum_tracing_opentelemetry::{
-    middleware::{OtelAxumLayer, OtelInResponseLayer},
-    opentelemetry_tracing_layer,
-};
+use axum_tracing_opentelemetry::middleware::{OtelAxumLayer, OtelInResponseLayer};
+use otel_bs::init_subscribers_and_loglevel;
 
 use std::net::{Ipv4Addr, SocketAddr};
 
-use tracing::info;
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::{Registry, fmt};
+use tracing::{Subscriber, info};
 
 // use opentelemetry::global::{self, BoxedTracer, ObjectSafeTracerProvider, tracer};
-use opentelemetry_otlp::{
-    OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_PROTOCOL, OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT,
-    Protocol, SpanExporter, WithExportConfig,
-};
-use opentelemetry_sdk::trace::SdkTracerProvider;
-use tracing_opentelemetry::layer;
-
-use opentelemetry::trace::TracerProvider;
 
 mod api;
 mod logic;
 mod processing;
 mod types;
 
-use axum::{
-    Router,
-    body::Bytes,
-    extract::MatchedPath,
-    http::{HeaderMap, Request},
-    response::{Html, Response},
-};
-use std::time::Duration;
-use tokio::net::TcpListener;
-use tower_http::{classify::ServerErrorsFailureClass, trace::TraceLayer};
-use tracing::{Span, info_span};
-use tracing_subscriber::util::SubscriberInitExt;
 // Note that this clones the document on each request.
 // To be more efficient, we could wrap it into an Arc,
 // or even store it as a serialized string.
@@ -50,50 +25,92 @@ async fn serve_api(Extension(api): Extension<OpenApi>) -> impl IntoApiResponse {
     Json(api)
 }
 
+mod otel_bs {
+
+    use init_tracing_opentelemetry::{
+        init_propagator, //stdio,
+        otlp,
+        resource::DetectResource,
+        tracing_subscriber_ext::{TracingGuard, build_logger_text},
+    };
+    use opentelemetry::trace::TracerProvider;
+    use opentelemetry_sdk::trace::{SdkTracerProvider, Tracer};
+    use tracing::{Subscriber, info, level_filters::LevelFilter};
+    use tracing_opentelemetry::OpenTelemetryLayer;
+    use tracing_subscriber::{
+        Layer, filter::EnvFilter, layer::SubscriberExt, registry::LookupSpan, reload::Error,
+    };
+    pub fn build_loglevel_filter_layer() -> tracing_subscriber::filter::EnvFilter {
+        // filter what is output on log (fmt)
+        // std::env::set_var("RUST_LOG", "warn,axum_tracing_opentelemetry=info,otel=debug");
+
+        // TLDR: Unsafe because its not thread safe, however we arent using it in that context so
+        // everything should (tmcr) be fine: https://doc.rust-lang.org/std/env/fn.set_var.html#safety
+        unsafe {
+            std::env::set_var(
+                "RUST_LOG",
+                format!(
+                    // `otel::tracing` should be a level trace to emit opentelemetry trace & span
+                    // `otel::setup` set to debug to log detected resources, configuration read and infered
+                    "{},otel::tracing=trace,otel=debug",
+                    std::env::var("OTEL_LOG_LEVEL").unwrap_or_else(|_| "debug".to_string())
+                ),
+            );
+        }
+        EnvFilter::from_default_env()
+    }
+
+    const SERVICE_NAME: &str = "crimson";
+    pub fn build_otel_layer<S>()
+    -> anyhow::Result<(OpenTelemetryLayer<S, Tracer>, SdkTracerProvider)>
+    where
+        S: Subscriber + for<'a> LookupSpan<'a>,
+    {
+        use opentelemetry::global;
+        let otel_rsrc = DetectResource::default()
+            .with_fallback_service_name(SERVICE_NAME)
+            // .with_fallback_service_name(env!("CARGO_PKG_NAME"))
+            // .with_fallback_service_version(env!("CARGO_PKG_VERSION"))
+            .build();
+        let tracer_provider = otlp::init_tracerprovider(otel_rsrc, otlp::identity)?;
+        // to not send trace somewhere, but continue to create and propagate,...
+        // then send them to `axum_tracing_opentelemetry::stdio::WriteNoWhere::default()`
+        // or to `std::io::stdout()` to print
+        //
+        // let otel_tracer = stdio::init_tracer(
+        //     otel_rsrc,
+        //     stdio::identity::<stdio::WriteNoWhere>,
+        //     stdio::WriteNoWhere::default(),
+        // )?;
+        init_propagator()?;
+        let layer = tracing_opentelemetry::layer()
+            .with_error_records_to_exceptions(true)
+            .with_tracer(tracer_provider.tracer(""));
+        global::set_tracer_provider(tracer_provider.clone());
+        Ok((layer, tracer_provider))
+    }
+
+    pub fn init_subscribers_and_loglevel() -> anyhow::Result<SdkTracerProvider> {
+        //setup a temporary subscriber to log output during setup
+        let subscriber = tracing_subscriber::registry()
+            .with(build_loglevel_filter_layer())
+            .with(build_logger_text());
+        let _guard = tracing::subscriber::set_default(subscriber);
+        info!("init logging & tracing");
+
+        let (layer, guard) = build_otel_layer()?;
+
+        let subscriber = tracing_subscriber::registry()
+            .with(layer)
+            .with(build_loglevel_filter_layer())
+            .with(build_logger_text());
+        tracing::subscriber::set_global_default(subscriber)?;
+        Ok(guard)
+    }
+}
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // // Initialize OpenTelemetry tracing and logging
-    // // Export spans to OTLP endpoint via gRPC
-    // println!("Started Program");
-    // let otel_endpoint = std::env::var(OTEL_EXPORTER_OTLP_ENDPOINT)
-    //     .expect("OTEL_EXPORTER_OTLP_ENDPOINT must be set");
-    // // Manually setting it to grpc for now.
-    // let otel_protocol = Protocol::Grpc;
-    // println!("Exporting on:{}", &otel_endpoint);
-    // let otlp_exporter = SpanExporter::builder()
-    //     .with_tonic()
-    //     .with_endpoint(otel_endpoint)
-    //     .with_protocol(otel_protocol)
-    //     .build()
-    //     .expect("Failed to create OTLP exporter");
-    // println!("Created otel exporter");
-    // let otel_provider = SdkTracerProvider::builder()
-    //     .with_simple_exporter(otlp_exporter)
-    //     .build();
-    // // Create a new OpenTelemetry trace pipeline that prints to stdout
-    // let stdout_provider: SdkTracerProvider = SdkTracerProvider::builder()
-    //     .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
-    //     .build();
-    // println!("Created otel provider");
-    // let otel_tracer = otel_provider.tracer("crimson");
-    // let stdout_tracer = stdout_provider.tracer("crimson");
-    // println!("Created Tracer");
-    // // Create a tracing layer with the configured tracer
-    //
-    // // Use the tracing subscriber `Registry`, or any other subscriber
-    // // that impls `LookupSpan`
-    // let _otel_subscriber = Registry::default()
-    //     .with(tracing_opentelemetry::layer().with_tracer(otel_tracer))
-    //     .with(tracing_subscriber::fmt::layer());
-    //
-    // let _stdout_subscriber = Registry::default()
-    //     .with(tracing_opentelemetry::layer().with_tracer(stdout_tracer))
-    //     .with(tracing_subscriber::fmt::layer());
-    //
-    // tracing::subscriber::set_global_default(_otel_subscriber)
-    //     .expect("Failed to set tracing subscriber");
-
-    let _guard = init_tracing_opentelemetry::tracing_subscriber_ext::init_subscribers()?;
+    let _ = init_subscribers_and_loglevel()?;
 
     info!("Tracing Subscriber is up and running, trying to create app");
     // initialise our subscriber
