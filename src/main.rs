@@ -40,12 +40,13 @@ mod otel_bs {
     use tracing_subscriber::{
         Layer, filter::EnvFilter, layer::SubscriberExt, registry::LookupSpan, reload::Error,
     };
+
     pub fn build_loglevel_filter_layer() -> tracing_subscriber::filter::EnvFilter {
         // filter what is output on log (fmt)
         // std::env::set_var("RUST_LOG", "warn,axum_tracing_opentelemetry=info,otel=debug");
 
         // TLDR: Unsafe because its not thread safe, however we arent using it in that context so
-        // everything should (tmcr) be fine: https://doc.rust-lang.org/std/env/fn.set_var.html#safety
+        // everything should be fine: https://doc.rust-lang.org/std/env/fn.set_var.html#safety
         unsafe {
             std::env::set_var(
                 "RUST_LOG",
@@ -60,7 +61,6 @@ mod otel_bs {
         EnvFilter::from_default_env()
     }
 
-    const SERVICE_NAME: &str = "crimson";
     pub fn build_otel_layer<S>()
     -> anyhow::Result<(OpenTelemetryLayer<S, Tracer>, SdkTracerProvider)>
     where
@@ -68,11 +68,11 @@ mod otel_bs {
     {
         use opentelemetry::global;
         let otel_rsrc = DetectResource::default()
-            .with_fallback_service_name(SERVICE_NAME)
-            // .with_fallback_service_name(env!("CARGO_PKG_NAME"))
+            .with_fallback_service_name(env!("CARGO_PKG_NAME"))
             // .with_fallback_service_version(env!("CARGO_PKG_VERSION"))
             .build();
         let tracer_provider = otlp::init_tracerprovider(otel_rsrc, otlp::identity)?;
+
         // to not send trace somewhere, but continue to create and propagate,...
         // then send them to `axum_tracing_opentelemetry::stdio::WriteNoWhere::default()`
         // or to `std::io::stdout()` to print
@@ -187,12 +187,13 @@ mod admin {
 
     /// Get static server info
     async fn get_server_info() -> impl IntoApiResponse {
-        let trace_id = tracing_opentelemetry_instrumentation_sdk::find_current_trace_id()
+        let trace_id_owned = tracing_opentelemetry_instrumentation_sdk::find_current_trace_id()
             .unwrap_or_else(|| "unknown trace id".to_string());
-        debug!(trace_id = &trace_id, "Someone tried to get server info");
-        info!(trace_id = &trace_id, "Someone tried to get server info");
-        warn!(trace_id = &trace_id, "Someone tried to get server info");
-        error!(trace_id = &trace_id, "Someone tried to get server info");
+        let trace_id = &trace_id_owned;
+        debug!(trace_id, "Someone tried to get server info");
+        info!(trace_id, "Someone tried to get server info");
+        warn!(trace_id, "Someone tried to get server info");
+        error!(trace_id, "Someone tried to get server info");
         Json(ServerInfo {
             name: "Crimson".into(),
             version: "0.0".into(),
