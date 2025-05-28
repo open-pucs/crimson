@@ -53,7 +53,7 @@ mod otel_bs {
                     // `otel::tracing` should be a level trace to emit opentelemetry trace & span
                     // `otel::setup` set to debug to log detected resources, configuration read and infered
                     "{},otel::tracing=trace,otel=debug",
-                    std::env::var("OTEL_LOG_LEVEL").unwrap_or_else(|_| "debug".to_string())
+                    std::env::var("OTEL_LOG_LEVEL").unwrap_or_else(|_| "info".to_string())
                 ),
             );
         }
@@ -169,9 +169,10 @@ async fn health() -> &'static str {
 mod admin {
     use aide::axum::{ApiRouter, IntoApiResponse, routing::get};
     use axum::Json;
+    use axum_tracing_opentelemetry::tracing_opentelemetry_instrumentation_sdk;
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
-    use tracing::info;
+    use tracing::{debug, error, info, warn};
 
     #[derive(Serialize, Deserialize, JsonSchema)]
     struct ServerInfo {
@@ -186,7 +187,12 @@ mod admin {
 
     /// Get static server info
     async fn get_server_info() -> impl IntoApiResponse {
-        info!("Someone tried to get server info");
+        let trace_id = tracing_opentelemetry_instrumentation_sdk::find_current_trace_id()
+            .unwrap_or_else(|| "unknown trace id".to_string());
+        debug!(trace_id = &trace_id, "Someone tried to get server info");
+        info!(trace_id = &trace_id, "Someone tried to get server info");
+        warn!(trace_id = &trace_id, "Someone tried to get server info");
+        error!(trace_id = &trace_id, "Someone tried to get server info");
         Json(ServerInfo {
             name: "Crimson".into(),
             version: "0.0".into(),
