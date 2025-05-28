@@ -115,16 +115,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Tracing Subscriber is up and running, trying to create app");
     // initialise our subscriber
     let app = ApiRouter::new()
-        // Add HTTP tracing layer
-        // include trace context as header into the response
-        .layer(OtelInResponseLayer::default())
-        //start OpenTelemetry trace on incoming request
-        .layer(OtelAxumLayer::default())
         .api_route("/v1/health", get(health))
         .route("/api.json", get(serve_api))
         .route("/swagger", Swagger::new("/api.json").axum_route())
         .nest("/v1/", api::router())
-        .nest("/admin/", admin::router());
+        .nest("/admin/", admin::router())
+        // Add HTTP tracing layer
+        // include trace context as header into the response
+        .layer(OtelInResponseLayer::default())
+        //start OpenTelemetry trace on incoming request
+        .layer(OtelAxumLayer::default());
 
     // Spawn background worker to process PDF tasks
     // This worker runs indefinitely
