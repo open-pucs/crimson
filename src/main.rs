@@ -33,9 +33,12 @@ mod otel_bs {
         resource::DetectResource,
         tracing_subscriber_ext::{TracingGuard, build_logger_text},
     };
-    use opentelemetry::trace::TracerProvider;
-    use opentelemetry_sdk::trace::{SdkTracerProvider, Tracer};
-    use tracing::{Subscriber, info, level_filters::LevelFilter};
+    use opentelemetry::{global, trace::TracerProvider};
+    use opentelemetry_sdk::{
+        logs::{BatchLogProcessor, SdkLoggerProvider},
+        trace::{SdkTracerProvider, Tracer},
+    };
+    use tracing::{Subscriber, info, instrument::WithSubscriber, level_filters::LevelFilter};
     use tracing_opentelemetry::OpenTelemetryLayer;
     use tracing_subscriber::{
         Layer, filter::EnvFilter, layer::SubscriberExt, registry::LookupSpan, reload::Error,
@@ -107,6 +110,18 @@ mod otel_bs {
         tracing::subscriber::set_global_default(subscriber)?;
         Ok(guard)
     }
+    // Maybe this is stupid, everything should maybe be done with traces, I havent seen any
+    // implementations on the internet suggest this approach.
+    // fn setup_seperate_log_exporter() -> anyhow::Result<()> {
+    //     let subscriber = tracing_subscriber::registry()
+    //         .with(build_loglevel_filter_layer())
+    //         .with(build_logger_text());
+    //     let exporter = opentelemetry_otlp::LogExporter::builder().with_subscriber(subscriber);
+    //     let logger_provider = SdkLoggerProvider::builder()
+    //         .with_log_processor(BatchLogProcessor::builder(exporter).build())
+    //         .build();
+    //     Ok(())
+    // }
 }
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
