@@ -37,3 +37,4 @@ rand = "0.9.1"
 # S3 stuff
 aws-sdk-s3 = "1.85.0"
 aws-config = "1.6.2"
+pyo3 = "0.25.1"
