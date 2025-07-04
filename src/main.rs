@@ -56,7 +56,7 @@ mod otel_bs {
                 format!(
                     // `otel::tracing` should be a level trace to emit opentelemetry trace & span
                     // `otel::setup` set to debug to log detected resources, configuration read and infered
-                    "{},otel::tracing=trace,otel=debug",
+                    "{},otel::tracing=trace,otel=info",
                     std::env::var("OTEL_LOG_LEVEL").unwrap_or_else(|_| "info".to_string())
                 ),
             );
@@ -110,18 +110,6 @@ mod otel_bs {
         tracing::subscriber::set_global_default(subscriber)?;
         Ok(guard)
     }
-    // Maybe this is stupid, everything should maybe be done with traces, I havent seen any
-    // implementations on the internet suggest this approach.
-    // fn setup_seperate_log_exporter() -> anyhow::Result<()> {
-    //     let subscriber = tracing_subscriber::registry()
-    //         .with(build_loglevel_filter_layer())
-    //         .with(build_logger_text());
-    //     let exporter = opentelemetry_otlp::LogExporter::builder().with_subscriber(subscriber);
-    //     let logger_provider = SdkLoggerProvider::builder()
-    //         .with_log_processor(BatchLogProcessor::builder(exporter).build())
-    //         .build();
-    //     Ok(())
-    // }
 }
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -137,7 +125,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .nest("/admin/", admin::router())
         // Add HTTP tracing layer
         // include trace context as header into the response
-        .layer(OtelInResponseLayer::default())
+        .layer(OtelInResponseLayer)
         //start OpenTelemetry trace on incoming request
         .layer(OtelAxumLayer::default());
 
@@ -204,11 +192,11 @@ mod admin {
     async fn get_server_info() -> impl IntoApiResponse {
         let trace_id_owned = tracing_opentelemetry_instrumentation_sdk::find_current_trace_id()
             .unwrap_or_else(|| "unknown trace id".to_string());
-        let trace_id = &trace_id_owned;
-        debug!(trace_id, "Someone tried to get server info");
-        info!(trace_id, "Someone tried to get server info");
-        warn!(trace_id, "Someone tried to get server info");
-        error!(trace_id, "Someone tried to get server info");
+        let example = "test-value";
+        debug!(example, "Someone tried to get server info");
+        info!(example, "Someone tried to get server info");
+        warn!(example, "Someone tried to get server info");
+        error!(example, "Someone tried to get server info");
         Json(ServerInfo {
             name: "Crimson".into(),
             version: "0.0".into(),
