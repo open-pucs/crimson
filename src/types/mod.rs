@@ -57,16 +57,42 @@ fn make_request_leaf(id: TaskID) -> String {
     format!("/v1/status/{}", id)
 }
 
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Default, JsonSchema)]
+pub enum MarkdownConversionMethod {
+    #[default]
+    Simple,
+    Marker,
+}
+
 #[derive(Debug, Clone)]
 pub struct DocStatus {
     pub file_location: FileLocation,
     pub request_id: TaskID,
+    pub conversion_method: MarkdownConversionMethod,
     // queue_id: u64,
     pub markdown: Option<String>,
     pub status: ProcessingStage,
     pub images: Option<HashMap<String, String>>,
     pub metadata: Option<HashMap<String, String>>,
     pub error: Option<String>,
+}
+impl DocStatus {
+    pub fn new_from_id_loc(
+        id: TaskID,
+        location: FileLocation,
+        method: MarkdownConversionMethod,
+    ) -> Self {
+        DocStatus {
+            file_location: location,
+            conversion_method: method,
+            request_id: id,
+            markdown: None,
+            status: ProcessingStage::Waiting,
+            metadata: None,
+            images: None,
+            error: None,
+        }
+    }
 }
 
 impl From<DocStatus> for DocStatusResponse {
@@ -83,18 +109,6 @@ impl From<DocStatus> for DocStatusResponse {
             metadata: input.metadata,
             error: input.error,
         }
-    }
-}
-
-pub fn make_new_docstatus(id: TaskID, location: FileLocation) -> DocStatus {
-    DocStatus {
-        file_location: location,
-        request_id: id,
-        markdown: None,
-        status: ProcessingStage::Waiting,
-        metadata: None,
-        images: None,
-        error: None,
     }
 }
 
