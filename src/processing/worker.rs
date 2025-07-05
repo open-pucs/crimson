@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use anyhow::{anyhow, bail};
 use tokio::time::sleep;
 
 use crate::logic::{get_file_task_from_queue, get_local_store, update_task_data};
@@ -26,15 +27,18 @@ pub async fn start_worker() {
     }
 }
 
-async fn process_pdf_from_status(mut status: DocStatus) -> Result<(), String> {
+async fn process_pdf_from_status(mut status: DocStatus) -> anyhow::Result<()> {
+    async fn task_errored(mut status: DocStatus, err: anyhow::Error) -> anyhow::Error {
+        status.error = Some("Encountered error: ".to_string() + &err.to_string());
+        status.status = ProcessingStage::Errored;
+        let _ = update_task_data(status).await;
+        err
+    }
     // Download the file
     let task_id = status.request_id;
     status.status = ProcessingStage::Processing;
     if let Err(err) = update_task_data(status.clone()).await {
-        return Err(format!(
-            "Failed to set status to Processing for task {}: {}",
-            task_id, err
-        ));
+        bail!("Failed to set status to Processing for task {task_id}: {err}",);
     }
     info!("Updated document to processing stage.");
 
@@ -43,29 +47,20 @@ async fn process_pdf_from_status(mut status: DocStatus) -> Result<(), String> {
         .file_store
         .download_to_file(&status.file_location)
         .await;
+    if let Err(err) = download_result {
+        return Err(task_errored(status, err.into()).await);
+    }
+    let local_path = download_result.unwrap();
 
-    let markdown_res = match download_result {
-        Ok(local_path) => {
-            // Process PDF to markdown
-            info!(
-                "Downloaded result successfully, processing pdf at: {}",
-                &local_path.to_string_lossy()
-            );
-            cheaply_process_pdf_path(&local_path)
-        }
-        Err(err) => {
-            status.error =
-                Some("Encountered error downloading file: ".to_string() + &err.to_string());
-            status.status = ProcessingStage::Errored;
-            let _ = update_task_data(status).await;
-            return Err("Encountered error downloading file: ".to_string() + &err.to_string());
-        }
-    };
+    // Process PDF to markdown
+    info!(
+        "Downloaded result successfully, processing pdf at: {}",
+        &local_path.to_string_lossy()
+    );
+    let markdown_res = cheaply_process_pdf_path(&local_path);
 
     // Update status based on processing result
-    match markdown_res
-        .map_err(|err| "Encountered error processing pdf: ".to_string() + &err.to_string())
-    {
+    match markdown_res {
         Ok(markdown) => {
             status.markdown = Some(markdown);
             status.status = ProcessingStage::Completed;
@@ -73,16 +68,15 @@ async fn process_pdf_from_status(mut status: DocStatus) -> Result<(), String> {
             match update_task_data(status).await {
                 Ok(_) => Ok(()),
                 Err(err) => {
-                    Err("Encountered error pushing final data to db: ".to_string()
-                        + &err.to_string())
+                    bail!(
+                        "Encountered error pushing final data to db: ".to_string()
+                            + &err.to_string()
+                    )
                 }
             }
         }
-        Err(err_str) => {
-            status.error = Some(err_str.clone());
-            status.status = ProcessingStage::Errored;
-            let _ = update_task_data(status).await;
-            Err(err_str)
+        Err(err) => {
+            Err(task_errored(status, anyhow!("Encountered error processing pdf: {err}")).await)
         }
     }
 }
