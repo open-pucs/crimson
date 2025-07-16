@@ -56,7 +56,15 @@ async fn pdf_ingest_debug_local_path(
     ingest_file_to_queue(task_status.clone()).await;
     Ok(Json(task_status.into()))
 }
-async fn pdf_get_status(Path(task_id): Path<TaskID>) -> Json<DocStatusResponse> {
+
+#[derive(Clone, Copy, Deserialize, JsonSchema)]
+struct TaskIDParams {
+    task_id: TaskID,
+}
+
+async fn pdf_get_status(
+    Path(TaskIDParams { task_id }): Path<TaskIDParams>,
+) -> Json<DocStatusResponse> {
     Json(get_task_data_from_id(task_id).await.unwrap().into())
 }
 
