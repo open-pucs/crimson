@@ -5,6 +5,7 @@ use aide::{
 };
 use axum::{Extension, Json};
 use axum_tracing_opentelemetry::middleware::{OtelAxumLayer, OtelInResponseLayer};
+use clap::Parser;
 use otel_bs::init_subscribers_and_loglevel;
 
 use std::net::{Ipv4Addr, SocketAddr};
@@ -17,6 +18,14 @@ mod api;
 mod logic;
 mod processing;
 mod types;
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Port to listen on
+    #[arg(short, long, default_value_t = 14423)]
+    port: u16,
+}
 
 // Note that this clones the document on each request.
 // To be more efficient, we could wrap it into an Arc,
@@ -113,6 +122,7 @@ mod otel_bs {
 }
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args = Args::parse();
     let _ = init_subscribers_and_loglevel()?;
 
     info!("Tracing Subscriber is up and running, trying to create app");
@@ -137,7 +147,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     // bind and serve
-    let addr = SocketAddr::new(Ipv4Addr::new(0, 0, 0, 0).into(), 8080);
+    let addr = SocketAddr::new(Ipv4Addr::new(0, 0, 0, 0).into(), args.port);
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     info!("Listening on http://{}", addr);
     let mut api = OpenApi {

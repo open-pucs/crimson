@@ -24,4 +24,4 @@ FROM debian:bookworm-slim AS runtime
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=builder /app/target/release/crimson /usr/local/bin
-ENTRYPOINT ["/usr/local/bin/crimson"]
+ENTRYPOINT ["/usr/local/bin/crimson --port 14423"]
