@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf, sync::LazyLock};
 use thiserror::Error;
 
 use schemars::JsonSchema;
@@ -45,10 +45,8 @@ pub struct DocStatusResponse {
     error: Option<String>,
 }
 
-lazy_static! {
-    pub static ref DOMAIN: String =
-        std::env::var("DOMAIN").expect("DOMAIN environment variable must be set");
-}
+pub static DOMAIN: LazyLock<String> =
+    LazyLock::new(|| std::env::var("DOMAIN").expect("DOMAIN environment variable must be set"));
 
 fn make_request_url(id: TaskID) -> String {
     (DOMAIN).to_string() + &make_request_leaf(id)

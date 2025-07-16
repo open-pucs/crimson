@@ -1,7 +1,8 @@
 use std::{
     collections::{HashMap, VecDeque},
+    env,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, LazyLock},
 };
 use tokio::fs;
 use tokio::sync::Mutex;
@@ -21,17 +22,33 @@ pub struct LocalFileStore {
     base_path: PathBuf,
     s3_config: S3ConfigParams,
 }
+
+pub static LOCAL_STORE_PATH: LazyLock<String> =
+    LazyLock::new(|| env::var("LOCAL_STORE_PATH").unwrap_or_else(|_| "./data".to_string()));
 impl Default for LocalFileStore {
     fn default() -> Self {
-        let base_path = std::env::var("LOCAL_STORE_PATH")
-            .unwrap_or_else(|_| String::from("./data"))
-            .into();
         LocalFileStore {
-            base_path,
+            base_path: (*LOCAL_STORE_PATH).clone().into(),
             s3_config: S3ConfigParams::default(),
         }
     }
 }
+
+pub static S3_CLOUD_REGION: LazyLock<String> =
+    LazyLock::new(|| env::var("S3_CLOUD_REGION").unwrap_or_else(|_| "sfo3".to_string()));
+
+pub static S3_ENDPOINT: LazyLock<String> = LazyLock::new(|| {
+    env::var("S3_ENDPOINT").unwrap_or_else(|_| "https://sfo3.digitaloceanspaces.com".to_string())
+});
+
+pub static S3_CRIMSON_BUCKET: LazyLock<String> =
+    LazyLock::new(|| env::var("S3_CRIMSON_BUCKET").unwrap_or_else(|_| "crimsondocs".to_string()));
+
+pub static S3_ACCESS_KEY: LazyLock<String> =
+    LazyLock::new(|| env::var("S3_ACCESS_KEY").expect("S3_ACCESS_KEY must be set"));
+
+pub static S3_SECRET_KEY: LazyLock<String> =
+    LazyLock::new(|| env::var("S3_SECRET_KEY").expect("S3_SECRET_KEY must be set"));
 
 #[derive(Debug, Clone)]
 pub struct S3ConfigParams {
@@ -44,33 +61,12 @@ pub struct S3ConfigParams {
 
 impl Default for S3ConfigParams {
     fn default() -> Self {
-        let bucket_env = "S3_CRIMSON_BUCKET";
-        let endpoint_env = "S3_ENDPOINT";
-        let region_env = "S3_REGION";
-        let default_bucket = "crimsondocs";
-        let default_endpoint = "https://sfo3.digitaloceanspaces.com";
-        let default_region = "sfo3";
-
-        let access_env = "S3_ACCESS_KEY";
-        let secret_env = "S3_SECRET_KEY";
         S3ConfigParams {
-            endpoint: std::env::var(endpoint_env).unwrap_or_else(|_err| {
-                warn!("{endpoint_env} not defined, defaulting to {default_endpoint}");
-                default_endpoint.into()
-            }),
-            region: std::env::var(region_env).unwrap_or_else(|_err| {
-                warn!("{region_env} not defined, defaulting to {default_region}");
-                default_region.into()
-            }),
-            default_bucket: std::env::var(bucket_env).unwrap_or_else(|_err| {
-                warn!("{endpoint_env} not defined, defaulting to {default_endpoint}");
-                default_bucket.into()
-            }),
-
-            access_key: std::env::var(access_env)
-                .unwrap_or_else(|_| panic!("{access_env} Not Set")),
-            secret_key: std::env::var(secret_env)
-                .unwrap_or_else(|_| panic!("{secret_env} Not Set")),
+            endpoint: (*S3_ENDPOINT).clone(),
+            region: (*S3_CLOUD_REGION).clone(),
+            default_bucket: (*S3_CRIMSON_BUCKET).clone(),
+            access_key: (*S3_ACCESS_KEY).clone(),
+            secret_key: (*S3_SECRET_KEY).clone(),
         }
     }
 }
