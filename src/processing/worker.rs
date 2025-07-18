@@ -10,8 +10,11 @@ use tracing::{error, info, warn};
 
 /// Start the worker that continuously processes PDF tasks from the queue.
 pub async fn start_worker() {
+    info!("Starting pdf processing worker.");
     loop {
         // Try to get a task from the queue
+        // This is multithreaded, so I assume only one instance is enough to keep itself busy,
+        // might want to add a semaphore if it needs more work though.
         match get_file_task_from_queue().await {
             Some(status) => {
                 let result = process_pdf_from_status(status).await;
@@ -21,7 +24,8 @@ pub async fn start_worker() {
             }
             None => {
                 // No tasks available, sleep briefly
-                sleep(Duration::from_secs(1)).await;
+                info!("No tasks detected, sleeping for 2 seconds.");
+                sleep(Duration::from_secs(2)).await;
             }
         }
     }

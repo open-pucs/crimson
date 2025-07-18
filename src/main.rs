@@ -10,7 +10,7 @@ use otel_bs::init_subscribers_and_loglevel;
 
 use std::net::{Ipv4Addr, SocketAddr};
 
-use tracing::{Subscriber, info};
+use tracing::{Instrument, Subscriber, info};
 
 // use opentelemetry::global::{self, BoxedTracer, ObjectSafeTracerProvider, tracer};
 
@@ -142,9 +142,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Spawn background worker to process PDF tasks
     // This worker runs indefinitely
     info!("App Created, spawning background process:");
-    tokio::spawn(async move {
-        processing::worker::start_worker().await;
-    });
+    tokio::spawn(
+        async move {
+            processing::worker::start_worker().await;
+        }
+        .in_current_span(),
+    );
 
     // bind and serve
     let addr = SocketAddr::new(Ipv4Addr::new(0, 0, 0, 0).into(), args.port);
