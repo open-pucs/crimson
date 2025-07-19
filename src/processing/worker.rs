@@ -1,12 +1,15 @@
 use std::time::Duration;
 
 use anyhow::{anyhow, bail};
+use tokio::sync::Semaphore;
 use tokio::time::sleep;
 
 use crate::logic::{get_file_task_from_queue, get_local_store, update_task_data};
 use crate::processing::{cheaply_process_pdf_path, process_marker_pdf};
 use crate::types::{DocStatus, FileStoreImplementation, MarkdownConversionMethod, ProcessingStage};
 use tracing::{error, info};
+
+static PDF_SEMAPHORE: Semaphore = Semaphore::const_new(3);
 
 /// Start the worker that continuously processes PDF tasks from the queue.
 pub async fn start_worker() {
@@ -15,12 +18,15 @@ pub async fn start_worker() {
         // Try to get a task from the queue
         // This is multithreaded, so I assume only one instance is enough to keep itself busy,
         // might want to add a semaphore if it needs more work though.
+        let permit = PDF_SEMAPHORE.acquire().await;
         match get_file_task_from_queue().await {
             Some(status) => {
-                let result = process_pdf_from_status(status).await;
-                if let Err(err) = result {
-                    error!("Encountered error while processing pdf: {}", err);
-                }
+                tokio::spawn(async move {
+                    if let Err(err) = process_pdf_from_status(status).await {
+                        error!(%err, "encountered error processing pdf.");
+                    }
+                    drop(permit);
+                });
             }
             None => {
                 // No tasks available, sleep briefly
