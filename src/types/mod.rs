@@ -45,7 +45,7 @@ pub struct DocStatusResponse {
 }
 
 pub static DOMAIN: LazyLock<String> =
-    LazyLock::new(|| std::env::var("DOMAIN").expect("DOMAIN environment variable must be set"));
+    LazyLock::new(|| std::env::var("DOMAIN").unwrap_or("localhost".to_string()));
 
 fn make_request_url(id: TaskID) -> String {
     (DOMAIN).to_string() + &make_request_leaf(id)
