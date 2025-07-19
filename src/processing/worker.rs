@@ -44,7 +44,7 @@ async fn process_pdf_from_status(mut status: DocStatus) -> anyhow::Result<()> {
     if let Err(err) = update_task_data(status.clone()).await {
         bail!("Failed to set status to Processing for task {task_id}: {err}",);
     }
-    info!("Updated document to processing stage.");
+    info!(task_id, "Updated document to processing stage.");
 
     let store = get_local_store();
     let download_result = store
@@ -58,8 +58,8 @@ async fn process_pdf_from_status(mut status: DocStatus) -> anyhow::Result<()> {
 
     // Process PDF to markdown
     info!(
-        "Downloaded result successfully, processing pdf at: {}",
-        &local_path.to_string_lossy()
+        local_path=%local_path.to_string_lossy(),
+        "Downloaded result successfully, processing pdf on locally",
     );
     let markdown_res = match status.conversion_method {
         MarkdownConversionMethod::Simple => cheaply_process_pdf_path(&local_path),
@@ -71,7 +71,7 @@ async fn process_pdf_from_status(mut status: DocStatus) -> anyhow::Result<()> {
         Ok(markdown) => {
             status.markdown = Some(markdown);
             status.status = ProcessingStage::Completed;
-            info!("Successfully processed pdf");
+            info!(task_id, "Successfully processed pdf");
             match update_task_data(status).await {
                 Ok(_) => Ok(()),
                 Err(err) => {
@@ -83,6 +83,7 @@ async fn process_pdf_from_status(mut status: DocStatus) -> anyhow::Result<()> {
             }
         }
         Err(err) => {
+            tracing::error!(%err,task_id,"Encountered error processing pdf");
             Err(task_errored(status, anyhow!("Encountered error processing pdf: {err}")).await)
         }
     }
