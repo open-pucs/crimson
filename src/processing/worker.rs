@@ -14,6 +14,7 @@ static PDF_SEMAPHORE: Semaphore = Semaphore::const_new(3);
 /// Start the worker that continuously processes PDF tasks from the queue.
 pub async fn start_worker() {
     info!("Starting pdf processing worker.");
+    let mut no_pdf_counter = 0;
     loop {
         // Try to get a task from the queue
         // This is multithreaded, so I assume only one instance is enough to keep itself busy,
@@ -21,6 +22,7 @@ pub async fn start_worker() {
         let permit = PDF_SEMAPHORE.acquire().await;
         match get_file_task_from_queue().await {
             Some(status) => {
+                no_pdf_counter = 0;
                 tokio::spawn(async move {
                     if let Err(err) = process_pdf_from_status(status).await {
                         error!(%err, "encountered error processing pdf.");
@@ -30,7 +32,11 @@ pub async fn start_worker() {
             }
             None => {
                 // No tasks available, sleep briefly
-                info!("No tasks detected, sleeping for 2 seconds.");
+                no_pdf_counter += 1;
+                if no_pdf_counter >= 30 {
+                    info!("No pdfs detected after {no_pdf_counter} polls");
+                    no_pdf_counter = 0;
+                }
                 sleep(Duration::from_secs(2)).await;
             }
         }
