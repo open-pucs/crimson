@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use aide::{
     axum::{ApiRouter, IntoApiResponse, routing::get},
     openapi::{Info, OpenApi},
@@ -10,7 +11,7 @@ use otel_bs::init_subscribers_and_loglevel;
 
 use std::net::{Ipv4Addr, SocketAddr};
 
-use tracing::{Instrument, Subscriber, info};
+use tracing::{Instrument, info};
 
 // use opentelemetry::global::{self, BoxedTracer, ObjectSafeTracerProvider, tracer};
 
@@ -40,18 +41,13 @@ mod otel_bs {
         init_propagator, //stdio,
         otlp,
         resource::DetectResource,
-        tracing_subscriber_ext::{TracingGuard, build_logger_text},
+        tracing_subscriber_ext::build_logger_text,
     };
-    use opentelemetry::{global, trace::TracerProvider};
-    use opentelemetry_sdk::{
-        logs::{BatchLogProcessor, SdkLoggerProvider},
-        trace::{SdkTracerProvider, Tracer},
-    };
-    use tracing::{Subscriber, info, instrument::WithSubscriber, level_filters::LevelFilter};
+    use opentelemetry::trace::TracerProvider;
+    use opentelemetry_sdk::trace::{SdkTracerProvider, Tracer};
+    use tracing::{Subscriber, info};
     use tracing_opentelemetry::OpenTelemetryLayer;
-    use tracing_subscriber::{
-        Layer, filter::EnvFilter, layer::SubscriberExt, registry::LookupSpan, reload::Error,
-    };
+    use tracing_subscriber::{filter::EnvFilter, layer::SubscriberExt, registry::LookupSpan};
 
     pub fn build_loglevel_filter_layer() -> tracing_subscriber::filter::EnvFilter {
         // filter what is output on log (fmt)
@@ -203,7 +199,7 @@ mod admin {
 
     /// Get static server info
     async fn get_server_info() -> impl IntoApiResponse {
-        let trace_id_owned = tracing_opentelemetry_instrumentation_sdk::find_current_trace_id()
+        let _trace_id_owned = tracing_opentelemetry_instrumentation_sdk::find_current_trace_id()
             .unwrap_or_else(|| "unknown trace id".to_string());
         let example = "test-value";
         debug!(example, "Someone tried to get server info");

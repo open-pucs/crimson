@@ -1,7 +1,7 @@
 use std::{
     collections::{HashMap, VecDeque},
     env,
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::{Arc, LazyLock},
 };
 use tokio::fs;
@@ -11,10 +11,8 @@ use crate::types::{
     DocStatus, DocStatusError, FileLocation, FileStoreImplementation, LocalPath, QueueError,
     StatusStoreImplementation, StoreError, TaskID, TaskMessage, TaskQueueImplementation,
 };
-use aws_config::{self};
 
 use super::s3_stuff::make_s3_client;
-use tracing::warn;
 
 /// Local filesystem-based implementation of FileStore.
 #[derive(Debug, Clone)]

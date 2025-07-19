@@ -28,6 +28,6 @@ pub fn cheaply_process_pdf_path(path: &Path) -> anyhow::Result<String> {
     }
 }
 
-pub async fn process_marker_pdf(path: &Path) -> anyhow::Result<String> {
+pub async fn process_marker_pdf(_path: &Path) -> anyhow::Result<String> {
     bail!("Marker PDF Processing Not Implemented")
 }

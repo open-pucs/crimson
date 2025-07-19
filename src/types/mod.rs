@@ -1,4 +1,3 @@
-use lazy_static::lazy_static;
 use std::{collections::HashMap, path::PathBuf, sync::LazyLock};
 use thiserror::Error;
 
@@ -52,7 +51,7 @@ fn make_request_url(id: TaskID) -> String {
     (DOMAIN).to_string() + &make_request_leaf(id)
 }
 fn make_request_leaf(id: TaskID) -> String {
-    format!("/v1/status/{}", id)
+    format!("/v1/status/{id}")
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Default, JsonSchema)]
@@ -242,7 +241,7 @@ impl TryFrom<String> for S3Location {
         let domain_rest = host_parts[2..].join(".");
 
         // 4) rebuild the endpoint (scheme + region + rest-of-domain)
-        let endpoint = format!("https://{}.{}", region, domain_rest);
+        let endpoint = format!("https://{region}.{domain_rest}");
 
         Ok(S3Location {
             key,

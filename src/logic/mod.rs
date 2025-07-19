@@ -67,8 +67,7 @@ pub async fn get_file_task_from_queue() -> Option<DocStatus> {
                 .await
                 .unwrap_or_else(|err| {
                     panic!(
-                        "DocStatus not found for dequeued TaskMessage, this shouldnt be possible: {}",
-                        err
+                        "DocStatus not found for dequeued TaskMessage, this shouldnt be possible: {err}",
                     )
                 }),
         );

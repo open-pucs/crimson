@@ -6,7 +6,7 @@ use tokio::time::sleep;
 use crate::logic::{get_file_task_from_queue, get_local_store, update_task_data};
 use crate::processing::{cheaply_process_pdf_path, process_marker_pdf};
 use crate::types::{DocStatus, FileStoreImplementation, MarkdownConversionMethod, ProcessingStage};
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 /// Start the worker that continuously processes PDF tasks from the queue.
 pub async fn start_worker() {
