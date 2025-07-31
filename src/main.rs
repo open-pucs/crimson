@@ -1,8 +1,7 @@
 #![allow(dead_code)]
 use aide::{
     axum::{ApiRouter, IntoApiResponse, routing::get},
-    openapi::{Info, OpenApi},
-    swagger::Swagger,
+    openapi::OpenApi,
 };
 use axum::{Extension, Json};
 use axum_tracing_opentelemetry::middleware::{OtelAxumLayer, OtelInResponseLayer};
@@ -28,13 +27,7 @@ struct Args {
     port: u16,
 }
 
-// Note that this clones the document on each request.
-// To be more efficient, we could wrap it into an Arc,
-// or even store it as a serialized string.
-async fn serve_api(Extension(api): Extension<OpenApi>) -> impl IntoApiResponse {
-    Json(api)
-}
-
+mod api_documentation;
 mod otel_bs {
 
     use init_tracing_opentelemetry::{
@@ -125,8 +118,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // initialise our subscriber
     let app = ApiRouter::new()
         .api_route("/v1/health", get(health))
-        .route("/api.json", get(serve_api))
-        .route("/swagger", Swagger::new("/api.json").axum_route())
         .nest("/v1/", api::router())
         .nest("/admin/", admin::router())
         // Add HTTP tracing layer
@@ -148,27 +139,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // bind and serve
     let addr = SocketAddr::new(Ipv4Addr::new(0, 0, 0, 0).into(), args.port);
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    info!("Listening on http://{}", addr);
-    let mut api = OpenApi {
-        info: Info {
-            description: Some("A library for Cheaply Batch Processing PDF's".to_string()),
-            ..Info::default()
-        },
-        ..OpenApi::default()
-    };
-    info!("Initialized OpenAPI");
-    axum::serve(
-        listener,
-        app
-            // Generate the documentation.
-            .finish_api(&mut api)
-            // Expose the documentation to the handlers.
-            .layer(Extension(api))
-            .into_make_service(),
-    )
-    .await
-    .unwrap();
-    // });
+    api_documentation::generate_api_docs_and_serve(listener, app, "A PDF processing API")
+        .await
+        .unwrap();
 
     Ok(())
 }

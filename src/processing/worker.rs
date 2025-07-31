@@ -16,9 +16,6 @@ pub async fn start_worker() {
     info!("Starting pdf processing worker.");
     let mut no_pdf_counter = 0;
     loop {
-        // Try to get a task from the queue
-        // This is multithreaded, so I assume only one instance is enough to keep itself busy,
-        // might want to add a semaphore if it needs more work though.
         let permit = PDF_SEMAPHORE.acquire().await;
         match get_file_task_from_queue().await {
             Some(status) => {
