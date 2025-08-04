@@ -56,9 +56,10 @@ fn make_request_leaf(id: TaskID) -> String {
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Default, JsonSchema)]
 pub enum MarkdownConversionMethod {
-    #[default]
     Simple,
     Marker,
+    #[default]
+    OlmOcr,
 }
 
 #[derive(Debug, Clone)]

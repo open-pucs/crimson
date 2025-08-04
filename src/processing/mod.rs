@@ -5,6 +5,24 @@ use std::path::Path;
 use anyhow::{anyhow, bail};
 use markdownify::pdf;
 
+use crate::types::MarkdownConversionMethod;
+
+pub async fn process_pdf(
+    local_path: &str,
+    method: &MarkdownConversionMethod,
+) -> anyhow::Result<String> {
+    let markdown_res = match method {
+        MarkdownConversionMethod::Simple => cheaply_process_pdf_path(local_path.as_ref()),
+        MarkdownConversionMethod::Marker => process_marker_pdf(local_path.as_ref()).await,
+        MarkdownConversionMethod::OlmOcr => olmocr_deepinfra_process(local_path).await,
+    };
+    markdown_res
+}
+
+pub async fn olmocr_deepinfra_process(local_path: &str) -> anyhow::Result<String> {
+    todo!()
+}
+
 /// Convert a PDF at the given path to Markdown string.
 /// Returns Err(String) on failure.
 pub fn cheaply_process_pdf_path(path: &Path) -> anyhow::Result<String> {

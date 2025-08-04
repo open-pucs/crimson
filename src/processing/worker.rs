@@ -70,10 +70,6 @@ async fn process_pdf_from_status(mut status: DocStatus) -> anyhow::Result<()> {
         local_path=%local_path.to_string_lossy(),
         "Downloaded result successfully, processing pdf on locally",
     );
-    let markdown_res = match status.conversion_method {
-        MarkdownConversionMethod::Simple => cheaply_process_pdf_path(&local_path),
-        MarkdownConversionMethod::Marker => process_marker_pdf(&local_path).await,
-    };
 
     // Update status based on processing result
     match markdown_res {
