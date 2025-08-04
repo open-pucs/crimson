@@ -5,7 +5,7 @@ use tokio::sync::Semaphore;
 use tokio::time::sleep;
 
 use crate::logic::{get_file_task_from_queue, get_local_store, update_task_data};
-use crate::processing::{cheaply_process_pdf_path, process_marker_pdf};
+use crate::processing::{cheaply_process_pdf_path, process_marker_pdf, process_pdf};
 use crate::types::{DocStatus, FileStoreImplementation, MarkdownConversionMethod, ProcessingStage};
 use tracing::{error, info};
 
@@ -70,9 +70,10 @@ async fn process_pdf_from_status(mut status: DocStatus) -> anyhow::Result<()> {
         local_path=%local_path.to_string_lossy(),
         "Downloaded result successfully, processing pdf on locally",
     );
+    let local_path_str: &str = (&local_path).as_path().to_str().unwrap();
 
     // Update status based on processing result
-    match markdown_res {
+    match process_pdf(local_path_str, &status.conversion_method).await {
         Ok(markdown) => {
             status.markdown = Some(markdown);
             status.status = ProcessingStage::Completed;
