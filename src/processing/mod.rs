@@ -11,12 +11,11 @@ pub async fn process_pdf(
     local_path: &str,
     method: &MarkdownConversionMethod,
 ) -> anyhow::Result<String> {
-    let markdown_res = match method {
+    match method {
         MarkdownConversionMethod::Simple => cheaply_process_pdf_path(local_path.as_ref()),
         MarkdownConversionMethod::Marker => process_marker_pdf(local_path.as_ref()).await,
         MarkdownConversionMethod::OlmOcr => olmocr_deepinfra_process(local_path).await,
-    };
-    markdown_res
+    }
 }
 
 pub async fn olmocr_deepinfra_process(local_path: &str) -> anyhow::Result<String> {

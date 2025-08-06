@@ -6,9 +6,15 @@ use aide::{
 use axum::{Extension, Json};
 use axum_tracing_opentelemetry::middleware::{OtelAxumLayer, OtelInResponseLayer};
 use clap::Parser;
-use otel_bs::init_subscribers_and_loglevel;
+use common::{
+    api_documentation::generate_api_docs_and_serve,
+    otel_tracing::initialize_tracing_and_wrap_router,
+};
 
-use std::net::{Ipv4Addr, SocketAddr};
+use std::{
+    convert::Infallible,
+    net::{Ipv4Addr, SocketAddr},
+};
 
 use tracing::{Instrument, info};
 
@@ -27,105 +33,22 @@ struct Args {
     port: u16,
 }
 
-mod api_documentation;
-mod otel_bs {
-
-    use init_tracing_opentelemetry::{
-        init_propagator, //stdio,
-        otlp,
-        resource::DetectResource,
-        tracing_subscriber_ext::build_logger_text,
-    };
-    use opentelemetry::trace::TracerProvider;
-    use opentelemetry_sdk::trace::{SdkTracerProvider, Tracer};
-    use tracing::{Subscriber, info};
-    use tracing_opentelemetry::OpenTelemetryLayer;
-    use tracing_subscriber::{filter::EnvFilter, layer::SubscriberExt, registry::LookupSpan};
-
-    pub fn build_loglevel_filter_layer() -> tracing_subscriber::filter::EnvFilter {
-        // filter what is output on log (fmt)
-        // std::env::set_var("RUST_LOG", "warn,axum_tracing_opentelemetry=info,otel=debug");
-
-        // TLDR: Unsafe because its not thread safe, however we arent using it in that context so
-        // everything should be fine: https://doc.rust-lang.org/std/env/fn.set_var.html#safety
-        unsafe {
-            std::env::set_var(
-                "RUST_LOG",
-                format!(
-                    // `otel::tracing` should be a level trace to emit opentelemetry trace & span
-                    // `otel::setup` set to debug to log detected resources, configuration read and infered
-                    "{},otel::tracing=trace,otel=info",
-                    std::env::var("OTEL_LOG_LEVEL").unwrap_or_else(|_| "info".to_string())
-                ),
-            );
-        }
-        EnvFilter::from_default_env()
-    }
-
-    pub fn build_otel_layer<S>()
-    -> anyhow::Result<(OpenTelemetryLayer<S, Tracer>, SdkTracerProvider)>
-    where
-        S: Subscriber + for<'a> LookupSpan<'a>,
-    {
-        use opentelemetry::global;
-        let otel_rsrc = DetectResource::default()
-            .with_fallback_service_name(env!("CARGO_PKG_NAME"))
-            // .with_fallback_service_version(env!("CARGO_PKG_VERSION"))
-            .build();
-        let tracer_provider = otlp::init_tracerprovider(otel_rsrc, otlp::identity)?;
-
-        // to not send trace somewhere, but continue to create and propagate,...
-        // then send them to `axum_tracing_opentelemetry::stdio::WriteNoWhere::default()`
-        // or to `std::io::stdout()` to print
-        //
-        // let otel_tracer = stdio::init_tracer(
-        //     otel_rsrc,
-        //     stdio::identity::<stdio::WriteNoWhere>,
-        //     stdio::WriteNoWhere::default(),
-        // )?;
-        init_propagator()?;
-        let layer = tracing_opentelemetry::layer()
-            .with_error_records_to_exceptions(true)
-            .with_tracer(tracer_provider.tracer(""));
-        global::set_tracer_provider(tracer_provider.clone());
-        Ok((layer, tracer_provider))
-    }
-
-    pub fn init_subscribers_and_loglevel() -> anyhow::Result<SdkTracerProvider> {
-        //setup a temporary subscriber to log output during setup
-        let subscriber = tracing_subscriber::registry()
-            .with(build_loglevel_filter_layer())
-            .with(build_logger_text());
-        let _guard = tracing::subscriber::set_default(subscriber);
-        info!("init logging & tracing");
-
-        let (layer, guard) = build_otel_layer()?;
-
-        let subscriber = tracing_subscriber::registry()
-            .with(layer)
-            .with(build_loglevel_filter_layer())
-            .with(build_logger_text());
-        tracing::subscriber::set_global_default(subscriber)?;
-        Ok(guard)
-    }
-}
+mod common;
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> anyhow::Result<Infallible> {
     let args = Args::parse();
-    let _ = init_subscribers_and_loglevel()?;
 
-    info!("Tracing Subscriber is up and running, trying to create app");
     // initialise our subscriber
-    let app = ApiRouter::new()
-        .api_route("/v1/health", get(health))
-        .nest("/v1/", api::router())
-        .nest("/admin/", admin::router())
-        // Add HTTP tracing layer
-        // include trace context as header into the response
-        .layer(OtelInResponseLayer)
-        //start OpenTelemetry trace on incoming request
-        .layer(OtelAxumLayer::default());
+    let app_maker = || {
+        ApiRouter::new()
+            .api_route("/v1/health", get(health))
+            .nest("/v1/", api::router())
+            .nest("/admin/", admin::router())
+    };
+    // Add HTTP tracing layer
+    // include trace context as header into the response
 
+    let app = initialize_tracing_and_wrap_router(app_maker)?;
     // Spawn background worker to process PDF tasks
     // This worker runs indefinitely
     info!("App Created, spawning background process:");
@@ -137,13 +60,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // bind and serve
-    let addr = SocketAddr::new(Ipv4Addr::new(0, 0, 0, 0).into(), args.port);
+    let addr = SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), args.port);
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    api_documentation::generate_api_docs_and_serve(listener, app, "A PDF processing API")
-        .await
-        .unwrap();
-
-    Ok(())
+    let Err(serve_err) = generate_api_docs_and_serve(listener, app, "A PDF processing API").await;
+    Err(serve_err.into())
 }
 
 /// Get health of the API.
